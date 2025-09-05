@@ -1,0 +1,182 @@
+// CIF 1.1 Grammar in Pest PEG format
+// Extracted from gemmi/cif.hpp
+
+// ===== Character Sets (Section g) =====
+
+// OrdinaryCharacter: ! % & ()*+,-./0-9: <=>?@A-Z[] \ ^ `a-z{|}~
+// Note: This would need a lookup table in the original, simplified here
+ordinary_char = {
+    "!"
+  | "%"
+  | "&"
+  | "("
+  | ")"
+  | "*"
+  | "+"
+  | ","
+  | "-"
+  | "."
+  | "/"
+  | '0'..'9'
+  | ":"
+  | "<"
+  | "="
+  | ">"
+  | "?"
+  | "@"
+  | 'A'..'Z'
+  | "["
+  | "]"
+  | "\\"
+  | "^"
+  | "`"
+  | 'a'..'z'
+  | "{"
+  | "|"
+  | "}"
+  | "~"
+}
+
+// NonBlankChar: !"#$%&'()*+,-./0-9:;<=>?@A-Z[\]^_`a-z{|}~
+nonblank_ch = { '\x21'..'\x7E' }
+// '!' through '~'
+
+// AnyPrintChar: space through tilde plus tab
+anyprint_ch = { ' '..'~' | "\t" }
+
+// WhiteSpace character (space, tab, newline, carriage return)
+ws_char = { " " | "\t" | "\n" | "\r" }
+
+// ===== White Space and Comments (Section f) =====
+
+// Comment: # followed by any printable chars until end of line
+comment = { "#" ~ (!"\n" ~ ANY)* }
+
+// WhiteSpace: one or more whitespace chars or comments
+whitespace = { (ws_char | comment)+ }
+
+// WhiteSpace or EOF
+ws_or_eof = { whitespace | EOI }
+
+// ===== Reserved Words (Section b) =====
+
+// Case insensitive keywords
+str_data   = { ^"data_" }
+str_loop   = { ^"loop_" ~ &ws_or_eof }
+str_global = { ^"global_" ~ &ws_or_eof }
+str_save   = { ^"save_" }
+str_stop   = { ^"stop_" ~ &ws_or_eof }
+
+// Combined keywords
+keyword = { str_data | str_loop | str_global | str_save | str_stop }
+
+// ===== Character Strings and Text Fields (Section e) =====
+
+// Helper: end of quoted string (quote followed by whitespace/comment/EOF)
+endq_single = { "'" ~ &(ws_char | "#" | EOI) }
+endq_double = { "\"" ~ &(ws_char | "#" | EOI) }
+
+// Single quoted string
+singlequoted = { "'" ~ (!endq_single ~ !"\n" ~ ANY)* ~ endq_single }
+
+// Double quoted string
+doublequoted = { "\"" ~ (!endq_double ~ !"\n" ~ ANY)* ~ endq_double }
+
+// Text field separator (semicolon at beginning of line)
+field_sep = { SOI | "\n" ~ ";" }
+
+// Text field: semicolon at line start, content, semicolon at line start
+textfield = { field_sep ~ (!field_sep ~ ANY)* ~ field_sep }
+
+// Unquoted string: not a keyword, not starting with _, $, or #, one or more non-blank chars
+unquoted = {
+    !keyword ~ !(^"_" | "$" | "#") ~ nonblank_ch+
+}
+
+// Simple unquoted (optimization): ordinary chars followed by whitespace
+simunq = { ordinary_char+ ~ &ws_char }
+
+// ===== Tags and Values (Section c) =====
+
+// Tag: underscore followed by non-blank characters
+tag = { "_" ~ nonblank_ch+ }
+
+// Value: any of the string types
+value = { simunq | singlequoted | doublequoted | textfield | unquoted }
+
+// Specific tag and value types
+item_tag   = { tag }
+item_value = { value }
+loop_tag   = { tag }
+loop_value = { value }
+
+// ===== Basic CIF Structure (Section a) =====
+
+// Data block name: zero or more non-blank characters
+datablockname = { nonblank_ch* }
+
+// Data block heading: data_ with name OR global_
+datablockheading = { (str_data ~ datablockname) | str_global }
+
+// Frame name: one or more non-blank characters
+framename = { nonblank_ch+ }
+
+// End frame marker
+endframe = { str_save }
+
+// ===== Complex Structures =====
+
+// Missing value: beginning of line (for error handling)
+missing_value = { &(SOI | "\n") }
+
+// Data item: tag, whitespace, value or missing value, whitespace/EOF
+dataitem = {
+    item_tag ~ whitespace ~ (item_value ~ ws_or_eof | missing_value)
+}
+
+// Loop end: optional stop_ with whitespace/EOF
+loop_end = { (str_stop ~ ws_or_eof)? }
+
+// Loop values section - must have at least one value followed by whitespace
+// Additional values are optional
+loop_values = {
+    loop_value ~ (whitespace ~ loop_value)* ~ ws_or_eof
+}
+
+// Loop structure: loop_ keyword, tags, values
+// Using loop_block to avoid keyword conflict
+loop_block = {
+    str_loop ~ whitespace ~ (loop_tag ~ whitespace)+ ~ (loop_values | &(keyword | EOI) // handle incorrect empty loop
+  ) ~ loop_end
+}
+
+// Save frame: save_ framename, content, save_ (as endframe)
+frame = {
+    str_save ~ framename ~ whitespace ~ (dataitem | loop_block)* ~ endframe ~ ws_or_eof
+}
+
+// Data block: heading, optional whitespace, content
+datablock = {
+    datablockheading ~ ws_or_eof ~ (dataitem | loop_block | frame)*
+}
+
+// CIF file content: one or more data blocks
+content = { datablock+ }
+
+// Complete CIF file
+file = {
+    SOI ~ whitespace? ~ (!EOI ~ content ~ EOI)?
+}
+
+// Single block parsing (for streaming)
+one_block = {
+    whitespace? ~ (!EOI ~ datablock)
+}
+
+// ===== Additional Rules for Pest =====
+
+// Implicit whitespace handling (if using Pest's WHITESPACE)
+// WHITESPACE = _{ ws_char }
+
+// Silent rules (use _ prefix in Pest to make rules silent/non-capturing)
+// These would be helper rules that don't appear in the parse tree

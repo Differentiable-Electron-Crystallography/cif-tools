@@ -1,0 +1,40 @@
+[package]
+name = "cif-parser"
+version = "0.1.0"
+edition = "2021"
+authors = ["Iain Maitland <iain@iainmaitland.com>"]
+description = "A general-purpose CIF (Crystallographic Information File) parser library"
+documentation = "https://docs.rs/cif-parser"
+repository = "https://github.com/Differentiable-Electron-Crystallography/cif-parser"
+license = "MIT OR Apache-2.0"
+keywords = ["cif", "crystallography", "parser", "mmcif", "pdbx"]
+categories = ["parser-implementations", "science"]
+readme = "README.md"
+
+[dependencies]
+pest = "2.6"
+pest_derive = "2.6"
+
+[dev-dependencies]
+# Add any development-only dependencies here
+
+[[example]]
+name = "basic_usage"
+path = "examples/basic_usage.rs"
+
+[[example]]
+name = "mmcif_parser"
+path = "examples/mmcif_parser.rs"
+
+[[example]]
+name = "advanced_features"
+path = "examples/advanced_features.rs"
+
+[[example]]
+name = "file_io"
+path = "examples/file_io.rs"
+
+[features]
+default = []
+# You could add optional features here, like:
+# parallel = ["rayon"]  # For parallel processing of large files
