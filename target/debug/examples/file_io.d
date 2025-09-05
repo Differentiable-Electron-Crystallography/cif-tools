@@ -1,1 +1,0 @@
-/Users/iainland/Projects/cif_parser/cif-parser/target/debug/examples/file_io: /Users/iainland/Projects/cif_parser/cif-parser/examples/file_io.rs /Users/iainland/Projects/cif_parser/cif-parser/src/cif.pest /Users/iainland/Projects/cif_parser/cif-parser/src/lib.rs
