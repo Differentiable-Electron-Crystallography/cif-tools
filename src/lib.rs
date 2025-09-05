@@ -269,9 +269,9 @@ impl CifDocument {
             match inner_pair.as_rule() {
                 Rule::datablockheading => {
                     let heading_str = inner_pair.as_str();
-                    block.name = if heading_str.starts_with("data_") {
+                    block.name = if heading_str.to_lowercase().starts_with("data_") {
                         heading_str[5..].to_string()
-                    } else if heading_str == "global_" {
+                    } else if heading_str.to_lowercase() == "global_" {
                         String::new() // Global block has no name
                     } else {
                         heading_str.to_string()
