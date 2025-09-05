@@ -1,10 +1,14 @@
 // CIF 1.1 Grammar in Pest PEG format
-// Extracted from gemmi/cif.hpp
+// Based on: https://www.iucr.org/resources/cif/spec/version1.1/cifsyntax
+// Extracted from gemmi/cif.hpp and mapped to CIF 1.1 formal productions
 
-// ===== Character Sets (Section g) =====
+// ===== PART 1: BASIC CHARACTER SETS =====
+// Reference: Table 2.2.7.1 - Printable character set
 
-// OrdinaryCharacter: ! % & ()*+,-./0-9: <=>?@A-Z[] \ ^ `a-z{|}~
-// Note: This would need a lookup table in the original, simplified here
+// Paragraph 42: OrdinaryChar
+// An "ordinary character", <OrdinaryChar>, is any character that may be used in an
+// unquoted string, excluding the special characters used as separators in the syntax.
+// Production: <OrdinaryChar> ::= ! % & ()*+,-./0-9:  <=>?@A-Z[]  \ ^  `a-z{|}~
 ordinary_char = {
     "!"
   | "%"
@@ -37,133 +41,206 @@ ordinary_char = {
   | "~"
 }
 
-// NonBlankChar: !"#$%&'()*+,-./0-9:;<=>?@A-Z[\]^_`a-z{|}~
+// Paragraph 41: NonBlankChar
+// A "non-blank character", <NonBlankChar>, is any printable character other than a
+// space <SP>, a tab <HT> or the special character _.
+// Production: <NonBlankChar> ::= !"#$%&'()*+,-./0-9:;<=>?@A-Z[\]^_`a-z{|}~
 nonblank_ch = { '\x21'..'\x7E' }
 // '!' through '~'
 
-// AnyPrintChar: space through tilde plus tab
+// Paragraph 40: AnyPrintChar
+// An "any print character", <AnyPrintChar>, is a printable character, a <SP>
+// character or a <HT> character.
+// Production: <AnyPrintChar> ::= <SP> | <HT> | !"#$%&'()*+,-./0-9:;<=>?@A-Z[\]^_`a-z{|}~
 anyprint_ch = { ' '..'~' | "\t" }
 
-// WhiteSpace character (space, tab, newline, carriage return)
+// Paragraph 43: WhiteSpace
+// "White space", <WhiteSpace>, is the generalization of the ASCII <SP> character,
+// and includes the characters <SP>, <HT>, <eol> and the comments.
+// Production: <WhiteSpace> ::= {<SP> | <HT> | <eol> | <Comments> | <TokenizedComments>}+
 ws_char = { " " | "\t" | "\n" | "\r" }
 
-// ===== White Space and Comments (Section f) =====
+// ===== PART 2: COMMENTS AND WHITESPACE =====
 
-// Comment: # followed by any printable chars until end of line
+// Paragraph 45: Comments
+// A "comment" is defined to be initiated with the character # followed by any sequence
+// of characters. The only characters not allowed are those in the production <eol>,
+// which <eol> terminates a comment.
+// Production: <Comments> ::= { '#' {<AnyPrintChar>}* <eol>}+
 comment = { "#" ~ (!"\n" ~ ANY)* }
 
-// WhiteSpace: one or more whitespace chars or comments
+// Paragraph 45: TokenizedComments
+// Comments recognized after blanks (space, tab or <eol>)
+// Production: <TokenizedComments> ::= { <SP> | <HT> | <eol> |}+ <Comments>
+// Note: In Pest, this is handled by the whitespace rule composition
+
+// Paragraph 43: WhiteSpace (implementation)
+// Combining ws_char and comments as per the production
 whitespace = { (ws_char | comment)+ }
 
-// WhiteSpace or EOF
+// Helper: WhiteSpace or EOF
 ws_or_eof = { whitespace | EOI }
 
-// ===== Reserved Words (Section b) =====
+// ===== PART 3: RESERVED WORDS =====
+// Paragraph 19: Reserved words
 
-// Case insensitive keywords
-str_data   = { ^"data_" }
-str_loop   = { ^"loop_" ~ &ws_or_eof }
+// Paragraph 27: Data block header
+// A "data block header", data_<blockname>, signals the beginning of a data block
+// Production: data_<blockname> where <blockname> is {<NonBlankChar>}+
+str_data = { ^"data_" }
+
+// Paragraph 19: loop_ keyword
+// The STAR keyword loop_ signals that the next list of data names should be
+// collected together in a table of data values.
+// Production: loop_ (case-insensitive)
+str_loop = { ^"loop_" ~ &ws_or_eof }
+
+// Paragraph 29: Global block
+// A "global block" is opened by the reserved word global_ appearing in the first
+// column of a line, followed by white space.
+// Production: global_
 str_global = { ^"global_" ~ &ws_or_eof }
-str_save   = { ^"save_" }
-str_stop   = { ^"stop_" ~ &ws_or_eof }
+
+// Paragraph 30: Save frame
+// A "save frame" is bounded by the reserved word save_ appearing in the first column
+// of a line and begins with save_<framename>
+// Production: save_<framename> where <framename> is {<NonBlankChar>}+
+str_save = { ^"save_" }
+
+// Paragraph 19: stop_ keyword
+// The stop_ reserved word was used in earlier STAR proposals to close a loop structure
+// Production: stop_ (now deprecated but still recognized)
+str_stop = { ^"stop_" ~ &ws_or_eof }
 
 // Combined keywords
 keyword = { str_data | str_loop | str_global | str_save | str_stop }
 
-// ===== Character Strings and Text Fields (Section e) =====
+// ===== PART 4: CHARACTER STRINGS =====
+// Paragraph 20: Quoted strings
 
-// Helper: end of quoted string (quote followed by whitespace/comment/EOF)
+// Helper for end of quoted string detection
 endq_single = { "'" ~ &(ws_char | "#" | EOI) }
 endq_double = { "\"" ~ &(ws_char | "#" | EOI) }
 
-// Single quoted string
+// Paragraph 20: Single-quoted string
+// A string of characters bounded by single quote characters (') (ASCII 39)
+// Production: <SingleQuotedString> ::= <single_quote>{<AnyPrintChar>}*<single_quote>
 singlequoted = { "'" ~ (!endq_single ~ !"\n" ~ ANY)* ~ endq_single }
 
-// Double quoted string
+// Paragraph 20: Double-quoted string
+// A string of characters bounded by double quote characters (") (ASCII 34)
+// Production: <DoubleQuotedString> ::= <double_quote>{<AnyPrintChar>}*<double_quote>
 doublequoted = { "\"" ~ (!endq_double ~ !"\n" ~ ANY)* ~ endq_double }
 
-// Text field separator (semicolon at beginning of line)
+// Paragraph 21: Text field
+// A "text field" is a character string starting with a semicolon character ;
+// as the first character of a line.
+// Production: <TextField> ::= <semicolon><eol>{{<AnyPrintChar>}*<eol>}*<semicolon>
 field_sep = { SOI | "\n" ~ ";" }
-
-// Text field: semicolon at line start, content, semicolon at line start
 textfield = { field_sep ~ (!field_sep ~ ANY)* ~ field_sep }
 
-// Unquoted string: not a keyword, not starting with _, $, or #, one or more non-blank chars
+// Paragraph 20: Unquoted string
+// An unquoted string is a contiguous string of non-white-space characters, which
+// starts with an ordinary character
+// Production: <UnquotedString> ::= <OrdinaryChar>{<NonBlankChar>}*
 unquoted = {
     !keyword ~ !(^"_" | "$" | "#") ~ nonblank_ch+
 }
 
-// Simple unquoted (optimization): ordinary chars followed by whitespace
+// Optimization: simple unquoted (ordinary chars only)
 simunq = { ordinary_char+ ~ &ws_char }
 
-// ===== Tags and Values (Section c) =====
+// ===== PART 5: DATA NAMES (TAGS) =====
 
-// Tag: underscore followed by non-blank characters
+// Paragraph 18: Data names
+// A "data name" is a character string starting with an underscore character <_>.
+// Production: <Tag> ::= <underscore>{<NonBlankChar>}+
 tag = { "_" ~ nonblank_ch+ }
 
-// Value: any of the string types
+// ===== PART 6: DATA VALUES =====
+
+// Paragraph 15: Data values
+// The syntax of data values within CIFs is fully defined
+// Production: <Value> ::= {'.'}|{'?'}|{<Numeric>}|{<CharString>}|{<TextField>}
 value = { simunq | singlequoted | doublequoted | textfield | unquoted }
 
-// Specific tag and value types
+// Specific tag and value types for parsing context
 item_tag   = { tag }
 item_value = { value }
 loop_tag   = { tag }
 loop_value = { value }
 
-// ===== Basic CIF Structure (Section a) =====
+// ===== PART 7: DATA BLOCKS AND GLOBAL BLOCKS =====
 
-// Data block name: zero or more non-blank characters
+// Paragraph 27: Data block name
+// Production: <DataBlockName> ::= {<NonBlankChar>}*
 datablockname = { nonblank_ch* }
 
-// Data block heading: data_ with name OR global_
+// Paragraph 27/29: Block heading
+// Either data_ with name OR global_
+// Production: <DataBlockHeading> ::= <data>{<NonBlankChar>}+ | <global>
 datablockheading = { (str_data ~ datablockname) | str_global }
 
-// Frame name: one or more non-blank characters
+// Paragraph 30: Save frame name
+// Production: <FrameName> ::= {<NonBlankChar>}+
 framename = { nonblank_ch+ }
 
 // End frame marker
 endframe = { str_save }
 
-// ===== Complex Structures =====
+// ===== PART 8: DATA ITEMS AND LOOPS =====
 
-// Missing value: beginning of line (for error handling)
+// Missing value detection (for error handling)
 missing_value = { &(SOI | "\n") }
 
-// Data item: tag, whitespace, value or missing value, whitespace/EOF
+// Paragraph 16: Data items
+// A "data item" is a data name followed by an associated data value
+// Production: <DataItem> ::= <Tag> <WhiteSpace> <Value>
 dataitem = {
     item_tag ~ whitespace ~ (item_value ~ ws_or_eof | missing_value)
 }
 
-// Loop end: optional stop_ with whitespace/EOF
+// Loop termination
 loop_end = { (str_stop ~ ws_or_eof)? }
 
-// Loop values section - must have at least one value followed by whitespace
-// Additional values are optional
+// Loop values section
+// Production: <LoopBody> ::= {<Value> <WhiteSpace>}+
 loop_values = {
     loop_value ~ (whitespace ~ loop_value)* ~ ws_or_eof
 }
 
-// Loop structure: loop_ keyword, tags, values
-// Using loop_block to avoid keyword conflict
+// Paragraph 19: Loop structure
+// A "looped list" of data values is a list of data values preceded by a list
+// of data names, preceded by the reserved case-insensitive word loop_
+// Production: <Loop> ::= <loop> {<Tag> <WhiteSpace>}+ <LoopBody>
 loop_block = {
     str_loop ~ whitespace ~ (loop_tag ~ whitespace)+ ~ (loop_values | &(keyword | EOI) // handle incorrect empty loop
   ) ~ loop_end
 }
 
-// Save frame: save_ framename, content, save_ (as endframe)
+// Paragraph 30: Save frame
+// A "save frame" is bounded by the reserved word save_
+// Production: <SaveFrame> ::= <save>{<NonBlankChar>}+ {<DataItem>|<Loop>}* <save>
 frame = {
     str_save ~ framename ~ whitespace ~ (dataitem | loop_block)* ~ endframe ~ ws_or_eof
 }
 
-// Data block: heading, optional whitespace, content
+// Paragraph 27: Data block
+// A "data block" is a logical grouping of data items and save frames
+// Production: <DataBlock> ::= <DataBlockHeading> {<WhiteSpace> {<DataItem>|<SaveFrame>|<Loop>}}*
 datablock = {
     datablockheading ~ ws_or_eof ~ (dataitem | loop_block | frame)*
 }
 
-// CIF file content: one or more data blocks
+// ===== PART 9: CIF FILE STRUCTURE =====
+
+// Paragraph 11: CIF content
+// A CIF is a sequence of data blocks
+// Production: <CIF> ::= {<DataBlock>}+ | {<WhiteSpace>}
 content = { datablock+ }
 
 // Complete CIF file
+// Production: <CIF> ::= {<Comments>}? {<DataBlock>}+ {<WhiteSpace>}?
 file = {
     SOI ~ whitespace? ~ (!EOI ~ content ~ EOI)?
 }
@@ -173,10 +250,4 @@ one_block = {
     whitespace? ~ (!EOI ~ datablock)
 }
 
-// ===== Additional Rules for Pest =====
-
-// Implicit whitespace handling (if using Pest's WHITESPACE)
-// WHITESPACE = _{ ws_char }
-
-// Silent rules (use _ prefix in Pest to make rules silent/non-capturing)
-// These would be helper rules that don't appear in the parse tree
+// ===== END OF CIF 1.1 GRAMMAR =====
