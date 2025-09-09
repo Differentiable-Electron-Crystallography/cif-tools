@@ -86,9 +86,14 @@ jobs:
         run: |
           # Build wheel and install it instead of using develop
           maturin build --features python --out dist
-          pip install dist/*.whl
         env:
           PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
+      
+      - name: Install Python package
+        run: |
+          # Install all wheel files in dist directory (cross-platform)
+          python -m pip install dist/*.whl
+        shell: bash  # Force bash on Windows to handle glob patterns
       
       - name: Run Python tests
         run: |
@@ -120,5 +125,5 @@ jobs:
       - name: Test WASM with Node.js
         run: |
           cd pkg-node
-          npm link
-          node -e "const cif = require('cif-parser'); console.log('WASM module loaded successfully');"
+          # Test by requiring the actual module file, not the package name
+          node -e "const cif = require('./cif_parser.js'); console.log('WASM module loaded successfully:', typeof cif.JsCifDocument);"
