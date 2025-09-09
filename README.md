@@ -1,67 +1,23 @@
 # CIF Parser
 
-A robust, general-purpose Rust library for parsing CIF (Crystallographic Information File) and mmCIF/PDBx files.
+A general-purpose library for parsing CIF (Crystallographic Information File) files.
+
+This repo contains the source code for each of the core rust library's bindings.
+- Rust (cargo)
+- Python (pypi)
+- Javascript & Typescript (npm)
 
 ## Features
 
 - ✅ Full CIF 1.1 syntax support
 - ✅ mmCIF/PDBx compatible
-- ✅ Support for data blocks, save frames, and loops
-- ✅ Handles all CIF value types (quoted, unquoted, text fields)
-- ✅ Special value recognition (`?` for unknown, `.` for not applicable)
 - ✅ Type-safe value access with automatic numeric parsing
-- ✅ Comprehensive error handling
-- ✅ Zero-copy parsing where possible
-- 🐍 **Python bindings** - Native Python package with full type hints and Pythonic API
+- ✅ Comprehensive input validation and error handling
+
+- 🐍 **Python bindings** - Native Python package with full type hints
 - 🌐 **WebAssembly support** - Use in browsers and Node.js with full TypeScript definitions
 - 🚀 **High performance** - Near-native speed with optimized binaries
 - 📦 **Multiple targets** - Rust crate, Python package, Web, Node.js, and bundler builds
-
-## Installation
-
-### Rust
-
-Add this to your `Cargo.toml`:
-
-```toml
-[dependencies]
-cif-parser = "0.1.0"
-```
-
-### Python
-
-**Requirements:** Python 3.8+ (Python 3.13+ requires forward compatibility flag)
-
-Install from PyPI (coming soon):
-
-```bash
-pip install cif-parser
-```
-
-Or install from source using UV (recommended):
-
-```bash
-# Clone the repository
-git clone https://github.com/Differentiable-Electron-Crystallography/cif-parser
-cd cif-parser
-
-# Install maturin (Rust-Python build tool)
-uv tool install maturin
-
-# Build and install in development mode
-# Note: Use forward compatibility flag for Python 3.13+
-PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 maturin develop --features python
-
-# Or build wheel for distribution
-maturin build --features python --release
-
-# Test the installation
-source .venv/bin/activate && python python_example.py
-```
-
-### WebAssembly
-
-See the [WebAssembly section](#webassembly-wasm-usage) for building WASM packages.
 
 ## Quick Start
 
@@ -637,7 +593,6 @@ This repository includes working examples:
 - **Binary Size**: Optimized WASM binary (~225KB gzipped)
 - **Parse Speed**: Near-native performance for typical CIF files
 - **Memory Usage**: Efficient memory management optimized for crystallographic data
-- **Streaming**: Large files handled efficiently with minimal memory overhead
 - **Bulk Access**: Use `get_column()` for extracting entire data columns
 - **Debug Mode**: Console logging can be disabled for production builds
 

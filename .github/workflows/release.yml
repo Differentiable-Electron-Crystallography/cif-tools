@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.1.0)'
+        required: true
+        type: string
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            VERSION=${{ github.event.inputs.version }}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+      
+      - name: Create Release
+        if: github.event_name == 'push'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          release_name: Release v${{ steps.version.outputs.version }}
+          body: |
+            ## CIF Parser v${{ steps.version.outputs.version }}
+            
+            ### Installation
+            
+            **Rust:**
+            ```toml
+            cif-parser = "${{ steps.version.outputs.version }}"
+            ```
+            
+            **Python:**
+            ```bash
+            pip install cif-parser==${{ steps.version.outputs.version }}
+            ```
+            
+            **NPM (JavaScript/TypeScript):**
+            ```bash
+            npm install @cif-parser/web@${{ steps.version.outputs.version }}
+            npm install @cif-parser/node@${{ steps.version.outputs.version }}
+            npm install @cif-parser/bundler@${{ steps.version.outputs.version }}
+            ```
+            
+            ### What's Changed
+            See the [CHANGELOG](https://github.com/Differentiable-Electron-Crystallography/cif-parser/blob/main/CHANGELOG.md) for details.
+          draft: false
+          prerelease: false
+
+  publish-crates:
+    name: Publish to crates.io
+    needs: create-release
+    uses: ./.github/workflows/publish-rust.yml
+    secrets: inherit
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: create-release
+    uses: ./.github/workflows/publish-python.yml
+    secrets: inherit
+
+  publish-npm:
+    name: Publish to NPM
+    needs: create-release
+    uses: ./.github/workflows/publish-npm.yml
+    secrets: inherit
