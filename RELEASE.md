@@ -129,7 +129,7 @@ If crates.io publishing fails:
 
 ## Version Compatibility
 
-- Python: Supports Python 3.8+ (use `PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1` for Python 3.13+)
+- Python: Supports Python 3.8-3.12
 - Node.js: Supports Node.js 14+
 - Rust: MSRV (Minimum Supported Rust Version) is 1.70.0
 

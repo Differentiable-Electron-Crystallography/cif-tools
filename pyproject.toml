@@ -30,7 +30,7 @@ classifiers = [
     "Topic :: Text Processing :: Markup",
     "Typing :: Typed",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.8,<3.13"
 dynamic = ["version"]
 
 [project.urls]

@@ -366,8 +366,7 @@ if block:
 uv tool install maturin
 
 # Build in development mode (faster, includes debug info)
-# Note: Use forward compatibility flag for Python 3.13+
-PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 maturin develop --features python
+maturin develop --features python
 
 # Build optimized wheel for distribution
 maturin build --features python --release
@@ -774,14 +773,6 @@ export class CifParserService {
 
 ### Troubleshooting Python
 
-#### Python 3.13+ Compatibility
-
-If you encounter build errors with Python 3.13+, use the forward compatibility flag:
-
-```bash
-PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 maturin develop --features python
-```
-
 #### Missing Dependencies
 
 **maturin not installed:**
@@ -791,7 +782,7 @@ uv tool install maturin
 ```
 
 **PyO3 version issues:**
-The current version uses PyO3 0.21, which supports Python 3.8-3.12 officially, and 3.13+ with the forward compatibility flag.
+The current version uses PyO3 0.21, which supports Python 3.8-3.12.
 
 ### Troubleshooting WASM
 
