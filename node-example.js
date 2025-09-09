@@ -1,4 +1,10 @@
 // Node.js example using the CIF parser WASM module
+//
+// IMPORTANT: Before running this example, build the Node.js WASM package:
+//   wasm-pack build --target nodejs --out-dir pkg-node
+//
+// Then run: node node-example.js
+//
 const { JsCifDocument, test_wasm, get_version } = require('./pkg-node/cif_parser.js');
 
 console.log('CIF Parser WASM Node.js Example');

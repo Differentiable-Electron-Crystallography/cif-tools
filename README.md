@@ -21,6 +21,8 @@ This repo contains the source code for each of the core rust library's bindings.
 
 ## Quick Start
 
+> **Note**: Examples require building the bindings first. See [Building from Source](#building-from-source) section below.
+
 ### Rust
 
 ```rust
@@ -382,6 +384,77 @@ mypy python/cif_parser/
 # Linting and formatting
 ruff check python/
 black python/
+```
+
+## Building from Source
+
+### Prerequisites
+
+- [Rust](https://rustup.rs/) 1.70.0 or later
+- For Python bindings: [maturin](https://maturin.rs/)
+- For WASM bindings: [wasm-pack](https://rustwasm.github.io/wasm-pack/)
+
+### Build Commands
+
+**Rust library:**
+```bash
+cargo build --release
+```
+
+**Python package:**
+```bash
+# Install maturin if not already installed
+pip install maturin
+
+# Build and install in development mode
+maturin develop --features python
+
+# Or build wheels for distribution
+maturin build --features python --release
+```
+
+**WebAssembly packages:**
+```bash
+# Install wasm-pack if not already installed
+curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+# Build for web browsers
+wasm-pack build --target web --out-dir pkg
+
+# Build for Node.js
+wasm-pack build --target nodejs --out-dir pkg-node
+
+# Build for bundlers (webpack, etc.)
+wasm-pack build --target bundler --out-dir pkg-bundler
+```
+
+### Running Examples
+
+After building the appropriate bindings:
+
+**Rust examples:**
+```bash
+cargo run --example basic_usage
+```
+
+**Python example:**
+```bash
+# After: maturin develop --features python
+python python_example.py
+```
+
+**Node.js example:**
+```bash
+# After: wasm-pack build --target nodejs --out-dir pkg-node
+node node-example.js
+```
+
+**Web example:**
+```bash
+# After: wasm-pack build --target web --out-dir pkg
+# Serve wasm-demo.html with any HTTP server:
+python -m http.server 8000
+# Open http://localhost:8000/wasm-demo.html
 ```
 
 ## WebAssembly (WASM) Usage
