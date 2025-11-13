@@ -454,3 +454,40 @@ fn test_parse_large_file() {
     assert_eq!(doc.blocks[0].items.len(), 1000);
     assert_eq!(doc.blocks[0].loops[0].len(), 10000);
 }
+
+#[test]
+fn test_error_span_tracking() {
+    use cif_parser::CifError;
+
+    // Test 1: Loop with mismatched values should include line/column
+    let cif_with_bad_loop = r#"
+data_test
+loop_
+_col1
+_col2
+value1
+"#;
+
+    let result = Document::parse(cif_with_bad_loop);
+    assert!(result.is_err());
+
+    if let Err(err) = result {
+        // Check that error contains location info
+        if let CifError::InvalidStructure { message, location } = &err {
+            assert!(message.contains("Loop has 2 tags but 1 values"));
+            assert!(location.is_some());
+            let (line, col) = location.unwrap();
+            assert_eq!(line, 3); // loop_ starts on line 3
+            assert!(col > 0);
+        } else {
+            panic!("Expected InvalidStructure error");
+        }
+
+        // Test that error message formatting includes location
+        let error_message = format!("{}", err);
+        assert!(error_message.contains("Error at line 3"));
+        assert!(error_message.contains("column"));
+    } else {
+        panic!("Expected error");
+    }
+}
