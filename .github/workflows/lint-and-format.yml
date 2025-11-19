@@ -14,26 +14,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Rust formatting and linting
+      # Install just command runner
+      - name: Install just
+        uses: extractions/setup-just@v2
+
+      # Rust setup
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
-      - name: Check Rust formatting
-        run: cargo fmt --all -- --check
-
-      - name: Run Clippy
-        run: cargo clippy --all-features -- -D warnings
-
-      # Python linting and type checking
+      # Python setup
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.11'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -42,23 +41,7 @@ jobs:
         working-directory: python
         run: uv pip install --system -e ".[dev]"
 
-      - name: Check Python formatting with black
-        working-directory: python
-        run: black --check .
-
-      - name: Lint Python with ruff
-        working-directory: python
-        run: ruff check .
-
-      - name: Type check Python with mypy
-        working-directory: python
-        run: mypy .
-
-      - name: Run pytest
-        working-directory: python
-        run: pytest
-
-      # JavaScript/TypeScript linting and formatting
+      # JavaScript setup
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -68,6 +51,10 @@ jobs:
         working-directory: javascript
         run: npm install
 
-      - name: Check JavaScript formatting and linting with Biome
-        working-directory: javascript
-        run: npx @biomejs/biome ci .
+      # WASM tooling
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      # Run all CI checks using just
+      - name: Run all CI checks
+        run: just ci

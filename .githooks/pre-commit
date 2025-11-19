@@ -1,100 +1,24 @@
 #!/bin/sh
 # Pre-commit hook for cif-parser project
-# Runs formatting and linting checks for all languages
+# Uses 'just' command runner for all checks
+#
+# Requires: just (install with: cargo install just)
 
 set -e
 
-echo "Running pre-commit checks..."
-
-# Rust Checks
-echo "🦀 Running Rust checks..."
-
-echo "  🔍 Checking code formatting with cargo fmt..."
-cargo fmt -- --check
-if [ $? -ne 0 ]; then
-    echo "  ❌ Code formatting check failed. Run 'cargo fmt' to fix."
+# Check if just is installed
+if ! command -v just >/dev/null 2>&1; then
+    echo "❌ Error: 'just' command runner is not installed"
+    echo "   Install it with: cargo install just"
+    echo "   Or see: https://github.com/casey/just"
     exit 1
 fi
 
-echo "  🔍 Running clippy linter..."
-cargo clippy --all-features -- -D warnings
-if [ $? -ne 0 ]; then
-    echo "  ❌ Clippy found issues. Please fix them before committing."
-    exit 1
-fi
+echo "Running pre-commit checks via just..."
+echo ""
 
-echo "  🧪 Running Rust tests..."
-# Note: We don't use --all-features here because the 'python' feature
-# requires PyO3's extension-module, which can't be tested with cargo test.
-# Python bindings are tested separately below.
-cargo test --quiet
-if [ $? -ne 0 ]; then
-    echo "  ❌ Tests failed. Please fix them before committing."
-    exit 1
-fi
+# Run all CI checks defined in justfile
+just ci
 
-# Python Checks
-if [ -d "python" ]; then
-    echo "🐍 Running Python checks..."
-
-    echo "  🔍 Checking formatting with black..."
-    (cd python && uv run black --check .)
-    if [ $? -ne 0 ]; then
-        echo "  ❌ Python formatting check failed. Run 'cd python && uv run black .' to fix."
-        exit 1
-    fi
-
-    echo "  🔍 Linting with ruff..."
-    (cd python && uv run ruff check .)
-    if [ $? -ne 0 ]; then
-        echo "  ❌ Ruff found issues. Run 'cd python && uv run ruff check --fix .' to fix."
-        exit 1
-    fi
-
-    echo "  🔍 Type checking with mypy..."
-    (cd python && uv run mypy .)
-    if [ $? -ne 0 ]; then
-        echo "  ❌ Mypy found type errors. Please fix them before committing."
-        exit 1
-    fi
-
-    echo "  🧪 Running Python tests..."
-    (cd python && uv run pytest tests/ -q)
-    if [ $? -ne 0 ]; then
-        echo "  ❌ Python tests failed. Please fix them before committing."
-        exit 1
-    fi
-fi
-
-# JavaScript Checks
-if [ -d "javascript" ] && [ -f "javascript/package.json" ]; then
-    echo "📜 Running JavaScript checks..."
-
-    # Check if node_modules exists, if not warn user
-    if [ ! -d "javascript/node_modules" ]; then
-        echo "  ⚠️  Warning: node_modules not found. Run 'cd javascript && npm install' first."
-        echo "  Skipping JavaScript checks..."
-    else
-        echo "  🔍 Checking formatting and linting with Biome..."
-        (cd javascript && npx @biomejs/biome ci .)
-        if [ $? -ne 0 ]; then
-            echo "  ❌ Biome found issues. Run 'cd javascript && npx @biomejs/biome check --write .' to fix."
-            exit 1
-        fi
-
-        # Check if WASM package is built
-        if [ -d "pkg-node" ]; then
-            echo "  🧪 Running JavaScript tests..."
-            (cd javascript && npx mocha tests/basic.test.js --reporter min)
-            if [ $? -ne 0 ]; then
-                echo "  ❌ JavaScript tests failed. Please fix them before committing."
-                exit 1
-            fi
-        else
-            echo "  ⚠️  Warning: WASM package not built. Run 'wasm-pack build --target nodejs --out-dir pkg-node' first."
-            echo "  Skipping JavaScript tests..."
-        fi
-    fi
-fi
-
+echo ""
 echo "✅ All checks passed! Your code is ready to commit."

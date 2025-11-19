@@ -33,11 +33,12 @@ describe('CIF Parser Tests', () => {
       assert.strictEqual(doc.blockCount, 2);
     });
 
-    it('should throw error on invalid CIF', () => {
+    // Note: The parser is intentionally permissive (see docs/reference/grammar-notes.md)
+    // Invalid CIF returns an empty document rather than throwing an error
+    it('should return empty document for invalid CIF', () => {
       const invalidCif = 'invalid cif content';
-      assert.throws(() => {
-        parse(invalidCif);
-      });
+      const doc = parse(invalidCif);
+      assert.strictEqual(doc.blockCount, 0);
     });
   });
 

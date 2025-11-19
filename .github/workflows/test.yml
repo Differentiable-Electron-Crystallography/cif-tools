@@ -22,10 +22,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install just
+        uses: extractions/setup-just@v2
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -38,24 +42,17 @@ jobs:
 
       - name: Check formatting
         if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
-        run: |
-          rustup component add rustfmt
-          cargo fmt -- --check
+        run: just rust-fmt-check
 
       - name: Run clippy
         if: matrix.rust == 'stable'
-        run: |
-          rustup component add clippy
-          cargo clippy --all-features -- -D warnings
+        run: just rust-clippy
 
       - name: Build
-        run: cargo build --verbose
+        run: just rust-build
 
       - name: Run tests
-        # Note: We don't use --all-features here because the 'python' feature
-        # requires PyO3's extension-module, which can't be tested with cargo test.
-        # Python bindings are tested in the python-tests job instead.
-        run: cargo test --verbose
+        run: just rust-test
 
       - name: Build documentation
         if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
@@ -71,6 +68,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install just
+        uses: extractions/setup-just@v2
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -89,14 +89,10 @@ jobs:
           uv pip install --system maturin pytest
 
       - name: Build and install Python package
-        run: |
-          cd python
-          uv run maturin develop --features python
+        run: just python-build
 
       - name: Run Python tests
-        run: |
-          cd python
-          uv run pytest tests/ -v
+        run: just python-test
 
   wasm-tests:
     name: WASM and JavaScript Tests
@@ -104,6 +100,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install just
+        uses: extractions/setup-just@v2
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -118,26 +117,20 @@ jobs:
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
+      - name: Install JavaScript dependencies
+        working-directory: javascript
+        run: npm install
+
       - name: Build WASM for web
-        run: wasm-pack build --target web --out-dir pkg
+        run: just wasm-build-web
 
       - name: Build WASM for Node.js
-        run: wasm-pack build --target nodejs --out-dir pkg-node
+        run: just wasm-build
 
       - name: Verify WASM loads
         run: |
-          cd pkg-node
+          cd javascript/pkg-node
           node -e "const cif = require('./cif_parser.js'); console.log('WASM module loaded successfully:', typeof cif.JsCifDocument);"
 
-      - name: Install JavaScript dependencies
-        run: |
-          cd javascript
-          npm install
-
-      - name: Install test runner
-        run: npm install -g mocha
-
       - name: Run JavaScript tests
-        run: |
-          cd javascript
-          mocha tests/basic.test.js
+        run: just js-test
