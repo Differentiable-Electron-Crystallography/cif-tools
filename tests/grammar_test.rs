@@ -313,7 +313,7 @@ save_
     let frame2 = "save_frame_with_loop
 loop_
 _tag1
-_tag2  
+_tag2
 val1 val2
 save_
 ";

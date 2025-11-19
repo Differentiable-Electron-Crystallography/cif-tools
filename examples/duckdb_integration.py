@@ -46,10 +46,7 @@ print("=" * 60)
 # Method 1: Simple iteration and filtering (no DuckDB needed)
 print("\n1. Simple Python filtering (without DuckDB):")
 print("-" * 60)
-carbon_atoms = [
-    row for row in loop
-    if row["_atom_site_type_symbol"].text == "C"
-]
+carbon_atoms = [row for row in loop if row["_atom_site_type_symbol"].text == "C"]
 print(f"Found {len(carbon_atoms)} carbon atoms:")
 for atom in carbon_atoms:
     label = atom["_atom_site_label"].text
@@ -106,7 +103,8 @@ try:
 
     # Query with DuckDB
     print("\n  Query: SELECT type, COUNT(*), AVG(occupancy)")
-    result = duckdb.query("""
+    result = duckdb.query(
+        """
         SELECT
             _atom_site_type_symbol as type,
             COUNT(*) as count,
@@ -116,11 +114,13 @@ try:
         FROM rows
         GROUP BY _atom_site_type_symbol
         ORDER BY count DESC
-    """).to_df()
+    """
+    ).to_df()
     print(result)
 
     print("\n  Query: Find atoms with fractional z > 0.5")
-    high_z = duckdb.query("""
+    high_z = duckdb.query(
+        """
         SELECT
             _atom_site_label,
             _atom_site_type_symbol,
@@ -128,15 +128,18 @@ try:
         FROM rows
         WHERE _atom_site_fract_z > 0.5
         ORDER BY _atom_site_fract_z
-    """).to_df()
+    """
+    ).to_df()
     print(high_z)
 
     print("\n  Query: Atoms with occupancy < 1.0")
-    partial = duckdb.query("""
+    partial = duckdb.query(
+        """
         SELECT *
         FROM rows
         WHERE _atom_site_occupancy < 1.0
-    """).to_df()
+    """
+    ).to_df()
     print(partial)
 
 except ImportError:
@@ -145,7 +148,8 @@ except ImportError:
 print("\n" + "=" * 60)
 print("Key Takeaway:")
 print("=" * 60)
-print("""
+print(
+    """
 The loop iterator enables:
   1. Simple Python iteration: for row in loop
   2. Easy conversion to pandas DataFrame
@@ -153,4 +157,5 @@ The loop iterator enables:
   4. Powerful data analysis workflows
 
 All with just: list(loop)
-""")
+"""
+)

@@ -1,6 +1,7 @@
 """Tests for CIF Value type detection and conversion."""
 
 import pytest
+
 import cif_parser
 
 

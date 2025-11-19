@@ -1,8 +1,8 @@
 """Tests for the Document class and parsing functions."""
 
 import pytest
+
 import cif_parser
-from pathlib import Path
 
 
 class TestParsing:

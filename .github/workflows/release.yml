@@ -17,10 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Determine version
         id: version
         run: |
@@ -31,7 +31,7 @@ jobs:
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
-      
+
       - name: Create Release
         if: github.event_name == 'push'
         uses: actions/create-release@v1
@@ -42,26 +42,26 @@ jobs:
           release_name: Release v${{ steps.version.outputs.version }}
           body: |
             ## CIF Parser v${{ steps.version.outputs.version }}
-            
+
             ### Installation
-            
+
             **Rust:**
             ```toml
             cif-parser = "${{ steps.version.outputs.version }}"
             ```
-            
+
             **Python:**
             ```bash
             pip install cif-parser==${{ steps.version.outputs.version }}
             ```
-            
+
             **NPM (JavaScript/TypeScript):**
             ```bash
             npm install @cif-parser/web@${{ steps.version.outputs.version }}
             npm install @cif-parser/node@${{ steps.version.outputs.version }}
             npm install @cif-parser/bundler@${{ steps.version.outputs.version }}
             ```
-            
+
             ### What's Changed
             See the [CHANGELOG](https://github.com/Differentiable-Electron-Crystallography/cif-parser/blob/main/CHANGELOG.md) for details.
           draft: false

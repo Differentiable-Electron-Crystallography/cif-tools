@@ -1,6 +1,5 @@
 """Tests for the Block class."""
 
-import pytest
 import cif_parser
 
 

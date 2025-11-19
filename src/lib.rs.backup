@@ -336,7 +336,7 @@ impl CifValue {
 /// ```text
 /// loop_
 /// _atom_site_label          # Column 1
-/// _atom_site_type_symbol    # Column 2  
+/// _atom_site_type_symbol    # Column 2
 /// _atom_site_fract_x        # Column 3
 /// C1  C  0.1234            # Row 1
 /// N1  N  0.5678            # Row 2
@@ -360,7 +360,7 @@ impl CifValue {
 /// // By position
 /// let value = loop_.get(0, 1);  // Row 0, Column 1
 ///
-/// // By tag name  
+/// // By tag name
 /// let value = loop_.get_by_tag(0, "_col2");  // Row 0, "_col2" column
 ///
 /// // Get entire column
@@ -436,7 +436,7 @@ impl CifLoop {
 /// _main_item value
 ///
 /// save_frame1
-/// _frame_item1 value1  
+/// _frame_item1 value1
 /// _frame_item2 value2
 /// loop_
 /// _col1 _col2
@@ -682,7 +682,7 @@ impl BlockBuilder {
 /// ```text
 /// # Comments and whitespace (ignored)
 ///
-/// data_first             # First data block  
+/// data_first             # First data block
 /// _item1 value1
 ///
 /// global_                # Global block (applies to subsequent blocks)
@@ -717,7 +717,7 @@ impl BlockBuilder {
 /// data_structure1
 /// _cell_length_a 10.0
 ///
-/// data_structure2  
+/// data_structure2
 /// _cell_length_a 15.0
 /// ```
 ///

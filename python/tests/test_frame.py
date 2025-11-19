@@ -1,6 +1,7 @@
 """Tests for the Frame class (save frames)."""
 
 import pytest
+
 import cif_parser
 
 

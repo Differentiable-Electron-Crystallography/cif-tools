@@ -1,18 +1,18 @@
 """CIF Parser - Fast CIF file parsing in Python using Rust.
 
-This package provides Python bindings for a high-performance CIF (Crystallographic 
+This package provides Python bindings for a high-performance CIF (Crystallographic
 Information File) parser written in Rust. It supports the full CIF 1.1 specification
 including mmCIF/PDBx files.
 
 Basic usage:
     >>> import cif_parser
-    >>> 
+    >>>
     >>> # Parse CIF content from string
     >>> doc = cif_parser.parse(cif_content)
-    >>> 
+    >>>
     >>> # Parse CIF file
     >>> doc = cif_parser.parse_file('structure.cif')
-    >>> 
+    >>>
     >>> # Access data
     >>> block = doc.first_block()
     >>> cell_a = block.get_item('_cell_length_a')
@@ -21,7 +21,7 @@ Basic usage:
 
 Classes:
     Document: Root container for CIF data
-    Block: Data block containing items, loops, and frames  
+    Block: Data block containing items, loops, and frames
     Loop: Tabular data structure
     Frame: Save frame container
     Value: Individual CIF value with type information
@@ -32,20 +32,20 @@ Functions:
 """
 
 from ._cif_parser import (
+    Block,
     Document,
-    Block, 
-    Loop,
     Frame,
+    Loop,
     Value,
+    __version__,
     parse,
     parse_file,
-    __version__,
 )
 
 __all__ = [
     "Document",
     "Block",
-    "Loop", 
+    "Loop",
     "Frame",
     "Value",
     "parse",

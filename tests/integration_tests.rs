@@ -116,7 +116,7 @@ fn test_parse_multiple_blocks() {
 data_first
 _item1 value1
 
-data_second  
+data_second
 _item2 value2
 
 global_

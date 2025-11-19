@@ -49,104 +49,103 @@ console.log(`Author: ${author()}`);
 console.log('='.repeat(60));
 
 try {
-    // Parse CIF content
-    console.log('\nParsing CIF content...');
-    const doc = parse(cifContent);
+  // Parse CIF content
+  console.log('\nParsing CIF content...');
+  const doc = parse(cifContent);
 
-    console.log(`\n✓ Successfully parsed ${doc.blockCount} data blocks`);
-    console.log(`  Block names: ${doc.blockNames.join(', ')}`);
+  console.log(`\n✓ Successfully parsed ${doc.blockCount} data blocks`);
+  console.log(`  Block names: ${doc.blockNames.join(', ')}`);
 
-    // Process first block
-    console.log('\n' + '='.repeat(60));
-    console.log('BLOCK 1: Protein Structure Data');
-    console.log('='.repeat(60));
+  // Process first block
+  console.log(`\n${'='.repeat(60)}`);
+  console.log('BLOCK 1: Protein Structure Data');
+  console.log('='.repeat(60));
 
-    const block = doc.get_block(0);
-    if (block) {
-        console.log(`Name: ${block.name}`);
-        console.log(`Data items: ${block.itemKeys.length}`);
-        console.log(`Loops: ${block.numLoops}`);
+  const block = doc.get_block(0);
+  if (block) {
+    console.log(`Name: ${block.name}`);
+    console.log(`Data items: ${block.itemKeys.length}`);
+    console.log(`Loops: ${block.numLoops}`);
 
-        // Display some data items
-        console.log('\nSample Data Items:');
-        console.log('-'.repeat(60));
+    // Display some data items
+    console.log('\nSample Data Items:');
+    console.log('-'.repeat(60));
 
-        const sampleKeys = ['_entry.id', '_cell.length_a', '_cell.length_b', '_cell.length_c'];
-        for (const key of sampleKeys) {
-            const value = block.get_item(key);
-            if (value) {
-                if (value.is_numeric()) {
-                    console.log(`  ${key.padEnd(30)} = ${value.numeric_value}`);
-                } else if (value.is_text()) {
-                    console.log(`  ${key.padEnd(30)} = "${value.text_value}"`);
-                }
-            }
+    const sampleKeys = ['_entry.id', '_cell.length_a', '_cell.length_b', '_cell.length_c'];
+    for (const key of sampleKeys) {
+      const value = block.get_item(key);
+      if (value) {
+        if (value.is_numeric()) {
+          console.log(`  ${key.padEnd(30)} = ${value.numeric_value}`);
+        } else if (value.is_text()) {
+          console.log(`  ${key.padEnd(30)} = "${value.text_value}"`);
         }
-
-        // Display loop data
-        if (block.numLoops > 0) {
-            console.log('\nLoop Data (Atom Sites):');
-            console.log('-'.repeat(60));
-
-            const loop = block.get_loop(0);
-            console.log(`Dimensions: ${loop.numRows} rows × ${loop.numColumns} columns`);
-            console.log(`Columns: ${loop.tags.join(', ')}`);
-
-            console.log('\nFirst 3 rows:');
-            for (let i = 0; i < Math.min(3, loop.numRows); i++) {
-                const row = loop.get_row_dict(i);
-                console.log(`\nRow ${i + 1}:`);
-                for (const [key, value] of Object.entries(row)) {
-                    let displayValue;
-                    if (value.is_numeric()) {
-                        displayValue = value.numeric_value;
-                    } else if (value.is_text()) {
-                        displayValue = `"${value.text_value}"`;
-                    } else {
-                        displayValue = '?';
-                    }
-                    console.log(`  ${key.padEnd(35)} = ${displayValue}`);
-                }
-            }
-
-            // Extract specific column
-            console.log('\nAll atom types (type_symbol column):');
-            const typeSymbols = loop.get_column('_atom_site.type_symbol');
-            if (typeSymbols) {
-                const atoms = typeSymbols
-                    .map(v => v.text_value)
-                    .filter(Boolean)
-                    .join(', ');
-                console.log(`  ${atoms}`);
-            }
-        }
+      }
     }
 
-    // Process second block
-    console.log('\n' + '='.repeat(60));
-    console.log('BLOCK 2: Refinement Data');
-    console.log('='.repeat(60));
+    // Display loop data
+    if (block.numLoops > 0) {
+      console.log('\nLoop Data (Atom Sites):');
+      console.log('-'.repeat(60));
 
-    const refineBlock = doc.get_block_by_name('refinement');
-    if (refineBlock) {
-        console.log(`Name: ${refineBlock.name}`);
-        console.log('\nRefinement Statistics:');
-        console.log('-'.repeat(60));
+      const loop = block.get_loop(0);
+      console.log(`Dimensions: ${loop.numRows} rows × ${loop.numColumns} columns`);
+      console.log(`Columns: ${loop.tags.join(', ')}`);
 
-        for (const key of refineBlock.itemKeys) {
-            const value = refineBlock.get_item(key);
-            if (value && value.is_numeric()) {
-                console.log(`  ${key.padEnd(30)} = ${value.numeric_value}`);
-            }
+      console.log('\nFirst 3 rows:');
+      for (let i = 0; i < Math.min(3, loop.numRows); i++) {
+        const row = loop.get_row_dict(i);
+        console.log(`\nRow ${i + 1}:`);
+        for (const [key, value] of Object.entries(row)) {
+          let displayValue;
+          if (value.is_numeric()) {
+            displayValue = value.numeric_value;
+          } else if (value.is_text()) {
+            displayValue = `"${value.text_value}"`;
+          } else {
+            displayValue = '?';
+          }
+          console.log(`  ${key.padEnd(35)} = ${displayValue}`);
         }
+      }
+
+      // Extract specific column
+      console.log('\nAll atom types (type_symbol column):');
+      const typeSymbols = loop.get_column('_atom_site.type_symbol');
+      if (typeSymbols) {
+        const atoms = typeSymbols
+          .map((v) => v.text_value)
+          .filter(Boolean)
+          .join(', ');
+        console.log(`  ${atoms}`);
+      }
     }
+  }
 
-    console.log('\n' + '='.repeat(60));
-    console.log('Parse completed successfully!');
-    console.log('='.repeat(60));
+  // Process second block
+  console.log(`\n${'='.repeat(60)}`);
+  console.log('BLOCK 2: Refinement Data');
+  console.log('='.repeat(60));
 
+  const refineBlock = doc.get_block_by_name('refinement');
+  if (refineBlock) {
+    console.log(`Name: ${refineBlock.name}`);
+    console.log('\nRefinement Statistics:');
+    console.log('-'.repeat(60));
+
+    for (const key of refineBlock.itemKeys) {
+      const value = refineBlock.get_item(key);
+      if (value?.is_numeric()) {
+        console.log(`  ${key.padEnd(30)} = ${value.numeric_value}`);
+      }
+    }
+  }
+
+  console.log(`\n${'='.repeat(60)}`);
+  console.log('Parse completed successfully!');
+  console.log('='.repeat(60));
 } catch (error) {
-    console.error('\n✗ Parse Error:');
-    console.error('  ' + error);
-    process.exit(1);
+  console.error('\n✗ Parse Error:');
+  console.error(`  ${error}`);
+  process.exit(1);
 }

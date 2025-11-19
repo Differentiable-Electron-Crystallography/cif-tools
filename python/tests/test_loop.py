@@ -1,6 +1,7 @@
 """Tests for the Loop class."""
 
 import pytest
+
 import cif_parser
 
 

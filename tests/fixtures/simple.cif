@@ -1,7 +1,7 @@
 # Simple CIF test fixture
 data_simple_test
 _cell_length_a    10.0000
-_cell_length_b    10.0000  
+_cell_length_b    10.0000
 _cell_length_c    15.0000
 _cell_angle_alpha 90.00
 _cell_angle_beta  90.00

@@ -12,7 +12,7 @@ _audit_creation_method                   'Jana2020 1.3.53'
 # 3. TITLE AND AUTHOR LIST
 
 _publ_section_title
-; 'Ionization of Atoms Determined by Kappa Refinement against 3D Electron 
+; 'Ionization of Atoms Determined by Kappa Refinement against 3D Electron
 Diffraction Data';
 ;
 
@@ -20,10 +20,10 @@ loop_
  _publ_author_name
  _publ_author_address
 ;
-'Ashwin Suresh, Emre Yoruk, Malgorzata Katarzyna Cabaj, Petr Brazda, 
+'Ashwin Suresh, Emre Yoruk, Malgorzata Katarzyna Cabaj, Petr Brazda,
 Karel Vyborny, Ondrej Sedlacek, Hrushikesh Chintakindi, Lukas Palatinus'
 ;
-; 
+;
 'Institute of Physics of the Czech Academy of Sciences, Prague, Czech Republic'
 ;
 #=======================================================================
@@ -642,8 +642,8 @@ loop_
 # start Validation Reply Form
 _vrf_PLAT881_I
 ;
-PROBLEM: No Datum for _diffrn_reflns_av_R_equivalents ...     Please Do !  
-RESPONSE: This is irrevelant for dynamical refinement, since the reflections 
+PROBLEM: No Datum for _diffrn_reflns_av_R_equivalents ...     Please Do !
+RESPONSE: This is irrevelant for dynamical refinement, since the reflections
 are not averaged.
 ;
 # end Validation Reply Form

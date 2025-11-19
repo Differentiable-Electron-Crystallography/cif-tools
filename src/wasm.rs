@@ -158,9 +158,9 @@ impl JsCifLoop {
     /// Get all values for a specific tag as an array
     #[wasm_bindgen]
     pub fn get_column(&self, tag: &str) -> Option<Vec<JsCifValue>> {
-        self.inner.get_column(tag).map(|values| {
-            values.iter().map(|v| (*v).into()).collect()
-        })
+        self.inner
+            .get_column(tag)
+            .map(|values| values.iter().map(|v| (*v).into()).collect())
     }
 
     /// Get a row as a JavaScript object (dictionary) mapping tags to values
@@ -373,7 +373,10 @@ impl JsCifDocument {
                     }
                     crate::CifError::InvalidStructure { message, location } => {
                         if let Some((line, col)) = location {
-                            format!("Invalid structure at line {}, col {}: {}", line, col, message)
+                            format!(
+                                "Invalid structure at line {}, col {}: {}",
+                                line, col, message
+                            )
                         } else {
                             format!("Invalid structure: {}", message)
                         }

@@ -39,7 +39,11 @@ impl fmt::Display for CifError {
             CifError::IoError(err) => write!(f, "IO error: {err}"),
             CifError::InvalidStructure { message, location } => {
                 if let Some((line, col)) = location {
-                    write!(f, "Error at line {}, column {}: Invalid CIF structure: {}", line, col, message)
+                    write!(
+                        f,
+                        "Error at line {}, column {}: Invalid CIF structure: {}",
+                        line, col, message
+                    )
                 } else {
                     write!(f, "Invalid CIF structure: {}", message)
                 }

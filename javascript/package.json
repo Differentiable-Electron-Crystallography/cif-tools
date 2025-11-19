@@ -28,7 +28,12 @@
     "build:bundler": "wasm-pack build --target bundler --out-dir javascript/pkg-bundler",
     "build:all": "npm run build && npm run build:node && npm run build:bundler",
     "test": "wasm-pack test --headless --firefox",
-    "test:node": "wasm-pack test --node"
+    "test:node": "wasm-pack test --node",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome check .",
+    "check:write": "biome check --write ."
   },
   "files": [
     "pkg/**/*",
@@ -39,6 +44,7 @@
     "LICENSE-APACHE"
   ],
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@types/node": "^20.0.0"
   }
 }

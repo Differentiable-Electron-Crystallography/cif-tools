@@ -132,7 +132,11 @@ impl CifBlock {
         self.items
             .keys()
             .map(|s| s.as_str())
-            .chain(self.loops.iter().flat_map(|l| l.tags.iter().map(|s| s.as_str())))
+            .chain(
+                self.loops
+                    .iter()
+                    .flat_map(|l| l.tags.iter().map(|s| s.as_str())),
+            )
             .chain(self.frames.iter().flat_map(|f| f.all_tags()))
     }
 

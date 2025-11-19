@@ -33,7 +33,10 @@ pub fn parse_file(input: &str) -> Result<CifDocument, CifError> {
 }
 
 /// Parse the content of a file rule
-fn parse_file_content(pair: pest::iterators::Pair<Rule>, doc: &mut CifDocument) -> Result<(), CifError> {
+fn parse_file_content(
+    pair: pest::iterators::Pair<Rule>,
+    doc: &mut CifDocument,
+) -> Result<(), CifError> {
     for inner_pair in pair.into_inner() {
         if inner_pair.as_rule() == Rule::content {
             for content_pair in inner_pair.into_inner() {

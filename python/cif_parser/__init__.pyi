@@ -21,7 +21,7 @@ Example usage with type checking:
                 print(f"Cell length: {length}")
 """
 
-from typing import Dict, Iterator, List, Optional, Union, overload
+from typing import Iterator, overload
 
 __version__: str
 __author__: str
@@ -30,7 +30,8 @@ class Value:
     """
     Represents a single value in a CIF file with runtime type detection.
 
-    CIF values can be text, numeric, or special values (unknown '?' or not applicable '.').
+    CIF values can be text, numeric, or special values
+    (unknown '?' or not applicable '.').
     Use the type-checking properties to determine the actual type at runtime.
 
     Type checking pattern:
@@ -65,7 +66,7 @@ class Value:
         ...
 
     @property
-    def text(self) -> Optional[str]:
+    def text(self) -> str | None:
         """
         Get the text value if is_text is True, otherwise None.
 
@@ -75,7 +76,7 @@ class Value:
         ...
 
     @property
-    def numeric(self) -> Optional[float]:
+    def numeric(self) -> float | None:
         """
         Get the numeric value if is_numeric is True, otherwise None.
 
@@ -94,7 +95,7 @@ class Value:
         """
         ...
 
-    def to_python(self) -> Union[str, float, None]:
+    def to_python(self) -> str | float | None:
         """
         Convert to native Python type.
 
@@ -135,7 +136,7 @@ class Loop:
     """
 
     @property
-    def tags(self) -> List[str]:
+    def tags(self) -> list[str]:
         """Get the column tags (headers)."""
         ...
 
@@ -148,7 +149,7 @@ class Loop:
         """Check if the loop has no rows."""
         ...
 
-    def get(self, row: int, col: int) -> Optional[Value]:
+    def get(self, row: int, col: int) -> Value | None:
         """
         Get a value by row and column index.
 
@@ -161,7 +162,7 @@ class Loop:
         """
         ...
 
-    def get_by_tag(self, row: int, tag: str) -> Optional[Value]:
+    def get_by_tag(self, row: int, tag: str) -> Value | None:
         """
         Get a value by row index and tag name.
 
@@ -174,7 +175,7 @@ class Loop:
         """
         ...
 
-    def get_column(self, tag: str) -> Optional[List[Value]]:
+    def get_column(self, tag: str) -> list[Value] | None:
         """
         Get all values for a specific column tag.
 
@@ -186,7 +187,7 @@ class Loop:
         """
         ...
 
-    def get_row_dict(self, row: int) -> Optional[Dict[str, Value]]:
+    def get_row_dict(self, row: int) -> dict[str, Value] | None:
         """
         Get a row as a dictionary mapping tags to values.
 
@@ -198,7 +199,7 @@ class Loop:
         """
         ...
 
-    def rows(self) -> List[List[Value]]:
+    def rows(self) -> list[list[Value]]:
         """
         Get all rows as lists of values.
 
@@ -211,7 +212,7 @@ class Loop:
         """Get the number of rows."""
         ...
 
-    def __iter__(self) -> Iterator[Dict[str, Value]]:
+    def __iter__(self) -> Iterator[dict[str, Value]]:
         """
         Iterate over rows as dictionaries.
 
@@ -247,7 +248,7 @@ class Frame:
         ...
 
     @property
-    def item_keys(self) -> List[str]:
+    def item_keys(self) -> list[str]:
         """Get all item tag names in this frame."""
         ...
 
@@ -256,7 +257,7 @@ class Frame:
         """Get the number of loops in this frame."""
         ...
 
-    def get_item(self, key: str) -> Optional[Value]:
+    def get_item(self, key: str) -> Value | None:
         """
         Get a data item value by tag name.
 
@@ -268,7 +269,7 @@ class Frame:
         """
         ...
 
-    def items(self) -> Dict[str, Value]:
+    def items(self) -> dict[str, Value]:
         """
         Get all data items as a dictionary.
 
@@ -277,7 +278,7 @@ class Frame:
         """
         ...
 
-    def get_loop(self, index: int) -> Optional[Loop]:
+    def get_loop(self, index: int) -> Loop | None:
         """
         Get a loop by index.
 
@@ -289,7 +290,7 @@ class Frame:
         """
         ...
 
-    def loops(self) -> List[Loop]:
+    def loops(self) -> list[Loop]:
         """
         Get all loops in this frame.
 
@@ -320,7 +321,7 @@ class Block:
         ...
 
     @property
-    def item_keys(self) -> List[str]:
+    def item_keys(self) -> list[str]:
         """Get all item tag names in this block."""
         ...
 
@@ -334,7 +335,7 @@ class Block:
         """Get the number of save frames in this block."""
         ...
 
-    def get_item(self, key: str) -> Optional[Value]:
+    def get_item(self, key: str) -> Value | None:
         """
         Get a data item value by tag name.
 
@@ -346,7 +347,7 @@ class Block:
         """
         ...
 
-    def items(self) -> Dict[str, Value]:
+    def items(self) -> dict[str, Value]:
         """
         Get all data items as a dictionary.
 
@@ -355,7 +356,7 @@ class Block:
         """
         ...
 
-    def get_loop(self, index: int) -> Optional[Loop]:
+    def get_loop(self, index: int) -> Loop | None:
         """
         Get a loop by index.
 
@@ -367,7 +368,7 @@ class Block:
         """
         ...
 
-    def find_loop(self, tag: str) -> Optional[Loop]:
+    def find_loop(self, tag: str) -> Loop | None:
         """
         Find the first loop containing a specific tag.
 
@@ -379,7 +380,7 @@ class Block:
         """
         ...
 
-    def get_frame(self, index: int) -> Optional[Frame]:
+    def get_frame(self, index: int) -> Frame | None:
         """
         Get a save frame by index.
 
@@ -391,7 +392,7 @@ class Block:
         """
         ...
 
-    def get_loop_tags(self) -> List[str]:
+    def get_loop_tags(self) -> list[str]:
         """
         Get all loop tags from all loops in this block.
 
@@ -458,16 +459,16 @@ class Document:
         ...
 
     @property
-    def blocks(self) -> List[Block]:
+    def blocks(self) -> list[Block]:
         """Get all data blocks in this document."""
         ...
 
     @property
-    def block_names(self) -> List[str]:
+    def block_names(self) -> list[str]:
         """Get the names of all blocks in this document."""
         ...
 
-    def get_block(self, index: int) -> Optional[Block]:
+    def get_block(self, index: int) -> Block | None:
         """
         Get a block by index.
 
@@ -479,7 +480,7 @@ class Document:
         """
         ...
 
-    def get_block_by_name(self, name: str) -> Optional[Block]:
+    def get_block_by_name(self, name: str) -> Block | None:
         """
         Get a block by name.
 
@@ -491,7 +492,7 @@ class Document:
         """
         ...
 
-    def first_block(self) -> Optional[Block]:
+    def first_block(self) -> Block | None:
         """
         Get the first block (common for single-block CIF files).
 
@@ -506,27 +507,8 @@ class Document:
 
     @overload
     def __getitem__(self, key: int) -> Block: ...
-
     @overload
     def __getitem__(self, key: str) -> Block: ...
-
-    def __getitem__(self, key: Union[int, str]) -> Block:
-        """
-        Get a block by index or name.
-
-        Args:
-            key: Block index (int) or name (str)
-
-        Returns:
-            The requested block
-
-        Raises:
-            IndexError: If index is out of bounds
-            KeyError: If block name not found
-            TypeError: If key is neither int nor str
-        """
-        ...
-
     def __iter__(self) -> Iterator[Block]:
         """
         Iterate over all blocks.

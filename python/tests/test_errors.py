@@ -1,9 +1,11 @@
 """Tests for error handling and edge cases."""
 
-import pytest
-import cif_parser
-import tempfile
 import os
+import tempfile
+
+import pytest
+
+import cif_parser
 
 
 class TestParsingErrors:
@@ -112,7 +114,7 @@ class TestFileErrors:
 
     def test_parse_empty_file(self):
         """Test parsing an empty file."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.cif', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".cif", delete=False) as f:
             temp_path = f.name
             # Write nothing
 
@@ -129,10 +131,10 @@ class TestFileErrors:
 
     def test_parse_file_invalid_encoding(self):
         """Test parsing file with invalid encoding."""
-        with tempfile.NamedTemporaryFile(mode='wb', suffix='.cif', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".cif", delete=False) as f:
             temp_path = f.name
             # Write invalid UTF-8 bytes
-            f.write(b'\xff\xfe invalid encoding \xff')
+            f.write(b"\xff\xfe invalid encoding \xff")
 
         try:
             # Should handle encoding errors gracefully
@@ -140,7 +142,7 @@ class TestFileErrors:
                 doc = cif_parser.parse_file(temp_path)
                 # If it doesn't raise, that's fine too
                 assert doc is not None or doc is None
-            except (ValueError, UnicodeDecodeError, IOError):
+            except (OSError, ValueError, UnicodeDecodeError):
                 # Any of these exceptions are acceptable
                 pass
         finally:

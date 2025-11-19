@@ -1,9 +1,9 @@
-# Rust build artifacts  
+# Rust build artifacts
 /target/
 
 # WASM generated packages (wasm-pack output)
 /pkg/
-/pkg-node/  
+/pkg-node/
 /pkg-bundler/
 /pkg-*/
 

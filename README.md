@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         data_example
         _cell.length_a   10.000
         _cell.length_b   10.000
-        
+
         loop_
         _atom_site.label
         _atom_site.x
@@ -43,15 +43,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         C1  0.123  0.456  0.789
         N1  0.234  0.567  0.890
     "#;
-    
+
     let doc = Document::parse(cif_content)?;
     let block = doc.first_block().unwrap();
-    
+
     // Access single values
     if let Some(cell_a) = block.get_item("_cell.length_a") {
         println!("Cell a: {:?}", cell_a.as_numeric());
     }
-    
+
     // Access loop data
     if let Some(atom_loop) = block.find_loop("_atom_site.label") {
         for i in 0..atom_loop.len() {
@@ -60,7 +60,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Atom {}: {:?}", i, label);
         }
     }
-    
+
     Ok(())
 }
 ```
@@ -316,7 +316,7 @@ value.is_not_applicable    # True if not applicable (.)
 
 # Value access
 value.text                 # Text content (or None)
-value.numeric              # Numeric content (or None)  
+value.numeric              # Numeric content (or None)
 value.value_type           # Type as string
 value.to_python()          # Convert to native Python type
 ```
@@ -517,38 +517,38 @@ After building, you can use the CIF parser in your JavaScript/TypeScript project
 <body>
     <script type="module">
         import init, { parse } from './javascript/pkg/cif_parser.js';
-        
+
         async function run() {
             // Initialize the WASM module
             await init();
-            
+
             // Parse CIF content
             const cifContent = `
                 data_example
                 _cell_length_a 10.000
                 _cell_length_b 20.000
-                
+
                 loop_
                 _atom_site_label
                 _atom_site_x
                 C1 0.123
                 N1 0.456
             `;
-            
+
             try {
                 const doc = parse(cifContent);
                 console.log(`Parsed ${doc.get_block_count()} blocks`);
-                
+
                 const block = doc.get_first_block();
                 if (block) {
                     console.log(`Block name: ${block.name}`);
-                    
+
                     // Get a data item
                     const cellA = block.get_item('_cell_length_a');
                     if (cellA && cellA.is_numeric()) {
                         console.log(`Cell a: ${cellA.numeric_value}`);
                     }
-                    
+
                     // Access loop data
                     const loop = block.get_loop(0);
                     if (loop) {
@@ -563,7 +563,7 @@ After building, you can use the CIF parser in your JavaScript/TypeScript project
                 console.error('Parsing failed:', error);
             }
         }
-        
+
         run();
     </script>
 </body>
@@ -584,13 +584,13 @@ const cifContent = `
 try {
     const doc = parse(cifContent);
     const block = doc.get_first_block();
-    
+
     console.log('Block name:', block.name);
     console.log('Items:', block.get_item_keys());
-    
+
     const author = block.get_item('_author_name');
     console.log('Author:', author.text_value);
-    
+
 } catch (error) {
     console.error('Error:', error);
 }
@@ -698,7 +698,7 @@ The generated WASM packages can be published to NPM:
 # Publish web version
 cd pkg && npm publish
 
-# Publish Node.js version  
+# Publish Node.js version
 cd pkg-node && npm publish --tag nodejs
 
 # Or publish both as scoped packages
@@ -715,7 +715,7 @@ For web applications, you can serve the WASM files from a CDN:
     // Load from your CDN
     import init, { JsCifDocument } from 'https://cdn.yoursite.com/cif-parser/cif_parser.js';
     await init('https://cdn.yoursite.com/cif-parser/cif_parser_bg.wasm');
-    
+
     const doc = JsCifDocument.parse(cifContent);
 </script>
 ```
@@ -728,20 +728,20 @@ import { useEffect, useState } from 'react';
 
 function CifParser() {
     const [parser, setParser] = useState(null);
-    
+
     useEffect(() => {
         import('./pkg/cif_parser.js').then(async (module) => {
             await module.default();
             setParser(module);
         });
     }, []);
-    
+
     const parseCif = (content) => {
         if (parser) {
             return parser.JsCifDocument.parse(content);
         }
     };
-    
+
     // ... rest of component
 }
 ```
@@ -753,13 +753,13 @@ import { ref, onMounted } from 'vue';
 export default {
     setup() {
         const parser = ref(null);
-        
+
         onMounted(async () => {
             const module = await import('./pkg/cif_parser.js');
             await module.default();
             parser.value = module;
         });
-        
+
         return { parser };
     }
 }
@@ -774,7 +774,7 @@ import { Injectable } from '@angular/core';
 })
 export class CifParserService {
     private parser: any = null;
-    
+
     async initialize() {
         if (!this.parser) {
             const module = await import('./assets/pkg/cif_parser.js');
@@ -783,7 +783,7 @@ export class CifParserService {
         }
         return this.parser;
     }
-    
+
     async parse(content: string) {
         const parser = await this.initialize();
         return parser.JsCifDocument.parse(content);
@@ -883,26 +883,89 @@ The library provides detailed error messages for:
 
 Contributions are welcome! Please feel free to submit issues or pull requests.
 
-### Setting up Git Hooks
+### Development Setup
 
-This project includes pre-commit hooks that run the same checks as our CI pipeline. To install them:
+#### Installing Git Hooks (Required)
+
+This project uses git hooks to ensure code quality before commits. **Please install them as part of your development setup:**
 
 ```bash
-# Install the git hooks (run from project root)
+# From project root
 ./install-hooks.sh
 ```
 
-The pre-commit hook will automatically:
-- Check code formatting with `cargo fmt`
-- Run linting with `cargo clippy`
-- Build the project
-- Run all tests
-- Build documentation
+This will configure git to run formatting and linting checks automatically before each commit for:
+- **Rust:** formatting (cargo fmt) and linting (clippy)
+- **Python:** formatting (black), linting (ruff), and type checking (mypy)
+- **JavaScript:** formatting and linting (biome)
 
-To bypass the hooks temporarily (not recommended), use:
+If you need to commit without running hooks (not recommended), use:
 ```bash
 git commit --no-verify
 ```
+
+### Code Quality
+
+This project enforces code quality through formatters and linters for all three languages. **All checks run automatically in CI** via GitHub Actions and in local git hooks.
+
+#### Running Formatters and Linters Manually
+
+**Rust:**
+```bash
+# Format code
+cargo fmt
+
+# Check formatting
+cargo fmt -- --check
+
+# Run linter
+cargo clippy --all-features
+```
+
+**Python:**
+```bash
+cd python
+
+# First time: install dependencies
+uv pip install -e ".[dev]"
+
+# Format code
+uv run black .
+
+# Check formatting
+uv run black --check .
+
+# Lint code
+uv run ruff check .
+uv run ruff check --fix .  # Auto-fix issues
+
+# Type check
+uv run mypy .
+```
+
+**JavaScript/TypeScript:**
+```bash
+cd javascript
+
+# First time: install dependencies
+npm install
+
+# Format and lint
+npm run check           # Check only
+npm run check:write     # Check and auto-fix
+
+# Or use biome directly
+npx @biomejs/biome check .
+npx @biomejs/biome check --write .
+```
+
+#### CI/CD
+
+All formatting and linting checks run automatically in GitHub Actions on every push and pull request:
+- **`lint-and-format.yml`** - Runs formatters and linters for all languages in parallel
+- **`test.yml`** - Runs builds and tests
+
+Both workflows run concurrently for fast feedback.
 
 ## License
 

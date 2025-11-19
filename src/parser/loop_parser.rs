@@ -28,16 +28,15 @@ pub(crate) fn parse_loop(pair: Pair<Rule>) -> Result<CifLoop, CifError> {
     let inner: Vec<_> = pair.into_inner().collect();
 
     // Collect all tag pairs (preserves individual tag locations)
-    let tag_pairs: Vec<_> = inner.iter()
+    let tag_pairs: Vec<_> = inner
+        .iter()
         .filter(|p| p.as_rule() == Rule::loop_tag || p.as_rule() == Rule::tag)
         .collect();
 
     // Validate tags exist
     if tag_pairs.is_empty() {
-        return Err(
-            CifError::invalid_structure("Loop block has no tags")
-                .at_location(loop_location.0, loop_location.1)
-        );
+        return Err(CifError::invalid_structure("Loop block has no tags")
+            .at_location(loop_location.0, loop_location.1));
     }
 
     // Extract tag strings
@@ -113,14 +112,12 @@ fn organize_loop_values(
 
     let tag_count = loop_.tags.len();
     if values.len() % tag_count != 0 {
-        return Err(
-            CifError::invalid_structure(format!(
-                "Loop has {} tags but {} values (not divisible)",
-                tag_count,
-                values.len()
-            ))
-            .at_location(location.0, location.1)
-        );
+        return Err(CifError::invalid_structure(format!(
+            "Loop has {} tags but {} values (not divisible)",
+            tag_count,
+            values.len()
+        ))
+        .at_location(location.0, location.1));
     }
 
     for row_values in values.chunks(tag_count) {

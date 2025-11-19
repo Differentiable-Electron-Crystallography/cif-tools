@@ -69,9 +69,10 @@ impl CifFrame {
 
     /// Iterate over all tags in this frame (from both items and loops)
     pub fn all_tags(&self) -> impl Iterator<Item = &str> {
-        self.items
-            .keys()
-            .map(|s| s.as_str())
-            .chain(self.loops.iter().flat_map(|l| l.tags.iter().map(|s| s.as_str())))
+        self.items.keys().map(|s| s.as_str()).chain(
+            self.loops
+                .iter()
+                .flat_map(|l| l.tags.iter().map(|s| s.as_str())),
+        )
     }
 }

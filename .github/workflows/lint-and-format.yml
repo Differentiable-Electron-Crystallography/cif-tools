@@ -1,0 +1,73 @@
+name: Lint and Format
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-format:
+    name: Check Formatting and Linting
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Rust formatting and linting
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy
+        run: cargo clippy --all-features -- -D warnings
+
+      # Python linting and type checking
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install Python dependencies
+        working-directory: python
+        run: uv pip install --system -e ".[dev]"
+
+      - name: Check Python formatting with black
+        working-directory: python
+        run: black --check .
+
+      - name: Lint Python with ruff
+        working-directory: python
+        run: ruff check .
+
+      - name: Type check Python with mypy
+        working-directory: python
+        run: mypy .
+
+      - name: Run pytest
+        working-directory: python
+        run: pytest
+
+      # JavaScript/TypeScript linting and formatting
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install JavaScript dependencies
+        working-directory: javascript
+        run: npm install
+
+      - name: Check JavaScript formatting and linting with Biome
+        working-directory: javascript
+        run: npx @biomejs/biome ci .

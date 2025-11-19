@@ -45,7 +45,8 @@ pub(crate) fn parse_dataitem(pair: Pair<Rule>) -> Result<(String, CifValue), Cif
     let inner: Vec<_> = pair.into_inner().collect();
 
     // Find tag pair (preserves location for better error messages)
-    let tag_pair = inner.iter()
+    let tag_pair = inner
+        .iter()
         .find(|p| p.as_rule() == Rule::item_tag || p.as_rule() == Rule::tag)
         .ok_or_else(|| {
             CifError::invalid_structure("Data item missing tag")
@@ -53,7 +54,8 @@ pub(crate) fn parse_dataitem(pair: Pair<Rule>) -> Result<(String, CifValue), Cif
         })?;
 
     // Find value pair
-    let value_pair = inner.iter()
+    let value_pair = inner
+        .iter()
         .find(|p| p.as_rule() == Rule::item_value || p.as_rule() == Rule::value);
 
     let tag = extract_text(tag_pair);
@@ -72,7 +74,8 @@ pub(crate) fn parse_frame(pair: Pair<Rule>) -> Result<CifFrame, CifError> {
     let inner: Vec<_> = pair.into_inner().collect();
 
     // Find framename (more precise error location)
-    let framename_pair = inner.iter()
+    let framename_pair = inner
+        .iter()
         .find(|p| p.as_rule() == Rule::framename)
         .ok_or_else(|| {
             CifError::invalid_structure("Save frame missing name")

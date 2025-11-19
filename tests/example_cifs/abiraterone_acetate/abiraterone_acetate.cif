@@ -183,7 +183,7 @@ _refine_diff_density_min                 -0.17
 _refine_ls_extinction_method             'none'
 
 _refine_ls_abs_structure_details
-;  
+;
 Absolute structure determined by comparing individual refinements
 of both enantiomorphs at an early stage of the structure determination
 applying dynamical theory of diffraction.

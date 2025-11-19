@@ -43,7 +43,7 @@ _space_group_symop_operation_xyz
 1 x,y,z
 2 -x,-y,-z
 
-_cell_special_details            
+_cell_special_details
 'parameters taken from https://doi.org/10.3390/cryst10121148'
 _cell_length_a                   7.13(6)
 _cell_length_b                   7.38(5)
@@ -72,7 +72,7 @@ _exptl_crystal_size_min          0.0004
 
 # 7. EXPERIMENTAL DATA
 
-_exptl_special_details           
+_exptl_special_details
 'parameters taken from https://doi.org/10.3390/cryst10121148'
 
 _diffrn_radiation_probe          electron
@@ -105,7 +105,7 @@ _diffrn_reflns_limit_l_max       13
 
 # 8. REFINEMENT DATA.
 
-_refine_special_details          
+_refine_special_details
 ;
 Reanalysis of data presented in https://doi.org/10.3390/cryst10121148.
 Raw data obtained from https://zenodo.org/record/4249684.
@@ -7717,7 +7717,7 @@ loop_
  1   x,y,z
  2   -x,-y,-z
 
-_cell_special_details            
+_cell_special_details
 'parameters taken from https://doi.org/10.3390/cryst10121148'
 _cell_length_a                   7.13(6)
 _cell_length_b                   7.38(5)
@@ -7744,7 +7744,7 @@ _exptl_crystal_size_min          0.0004
 
 # 7. EXPERIMENTAL DATA
 
-_exptl_special_details           
+_exptl_special_details
 'parameters taken from https://doi.org/10.3390/cryst10121148'
 
 _diffrn_radiation_probe          electron
@@ -10402,5 +10402,5 @@ loop_
   -2  -2  11    1.49    0.08    1.39 <
   -5  -1  11    1.11    2.37    1.19 <
   -4  -1  11    0.49    1.00    0.89 <
-  
+
 #=======================================================================
