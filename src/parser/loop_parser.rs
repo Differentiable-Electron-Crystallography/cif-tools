@@ -111,7 +111,7 @@ fn organize_loop_values(
     }
 
     let tag_count = loop_.tags.len();
-    if values.len() % tag_count != 0 {
+    if !values.len().is_multiple_of(tag_count) {
         return Err(CifError::invalid_structure(format!(
             "Loop has {} tags but {} values (not divisible)",
             tag_count,
