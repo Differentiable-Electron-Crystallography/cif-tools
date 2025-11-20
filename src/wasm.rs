@@ -3,8 +3,9 @@
 //! This module provides JavaScript-compatible wrappers around the core CIF parsing
 //! functionality, using wasm-bindgen for seamless interop with JavaScript.
 
-use crate::{CifBlock, CifDocument, CifFrame, CifLoop, CifValue};
+use crate::{CifBlock, CifDocument, CifFrame, CifLoop, CifValue, CifVersion};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
 // Console logging for debugging
@@ -18,6 +19,49 @@ macro_rules! console_log {
     ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
 }
 
+/// JavaScript-compatible representation of CIF version
+#[wasm_bindgen]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum JsCifVersion {
+    /// CIF 1.1 specification
+    V1_1 = 0,
+    /// CIF 2.0 specification
+    V2_0 = 1,
+}
+
+#[wasm_bindgen]
+impl JsCifVersion {
+    /// Get the version as a string
+    #[wasm_bindgen(js_name = toString)]
+    pub fn to_string(&self) -> String {
+        match self {
+            JsCifVersion::V1_1 => "CIF 1.1".to_string(),
+            JsCifVersion::V2_0 => "CIF 2.0".to_string(),
+        }
+    }
+
+    /// Check if this is CIF 2.0
+    #[wasm_bindgen(js_name = isCif2)]
+    pub fn is_cif2(&self) -> bool {
+        matches!(self, JsCifVersion::V2_0)
+    }
+
+    /// Check if this is CIF 1.1
+    #[wasm_bindgen(js_name = isCif1)]
+    pub fn is_cif1(&self) -> bool {
+        matches!(self, JsCifVersion::V1_1)
+    }
+}
+
+impl From<CifVersion> for JsCifVersion {
+    fn from(version: CifVersion) -> Self {
+        match version {
+            CifVersion::V1_1 => JsCifVersion::V1_1,
+            CifVersion::V2_0 => JsCifVersion::V2_0,
+        }
+    }
+}
+
 /// JavaScript-compatible representation of a CIF value
 #[wasm_bindgen]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,6 +69,8 @@ pub struct JsCifValue {
     value_type: String,
     text_value: Option<String>,
     numeric_value: Option<f64>,
+    list_value: Option<Vec<JsCifValue>>,
+    table_value: Option<HashMap<String, JsCifValue>>,
 }
 
 #[wasm_bindgen]
@@ -70,6 +116,50 @@ impl JsCifValue {
     pub fn is_not_applicable(&self) -> bool {
         self.value_type == "NotApplicable"
     }
+
+    /// Check if this is a list value (CIF 2.0 only)
+    #[wasm_bindgen]
+    pub fn is_list(&self) -> bool {
+        self.value_type == "List"
+    }
+
+    /// Check if this is a table value (CIF 2.0 only)
+    #[wasm_bindgen]
+    pub fn is_table(&self) -> bool {
+        self.value_type == "Table"
+    }
+
+    /// Get the list value as a JavaScript array (if this is a list value)
+    /// Returns the serialized list or undefined if not a list
+    #[wasm_bindgen(getter)]
+    pub fn list_value(&self) -> JsValue {
+        match &self.list_value {
+            Some(list) => match serde_wasm_bindgen::to_value(list) {
+                Ok(value) => value,
+                Err(e) => {
+                    console_log!("Error serializing list value: {:?}", e);
+                    JsValue::UNDEFINED
+                }
+            },
+            None => JsValue::UNDEFINED,
+        }
+    }
+
+    /// Get the table value as a JavaScript object (if this is a table value)
+    /// Returns the serialized table or undefined if not a table
+    #[wasm_bindgen(getter)]
+    pub fn table_value(&self) -> JsValue {
+        match &self.table_value {
+            Some(table) => match serde_wasm_bindgen::to_value(table) {
+                Ok(value) => value,
+                Err(e) => {
+                    console_log!("Error serializing table value: {:?}", e);
+                    JsValue::UNDEFINED
+                }
+            },
+            None => JsValue::UNDEFINED,
+        }
+    }
 }
 
 impl From<&CifValue> for JsCifValue {
@@ -79,21 +169,43 @@ impl From<&CifValue> for JsCifValue {
                 value_type: "Text".to_string(),
                 text_value: Some(s.clone()),
                 numeric_value: None,
+                list_value: None,
+                table_value: None,
             },
             CifValue::Numeric(n) => JsCifValue {
                 value_type: "Numeric".to_string(),
                 text_value: None,
                 numeric_value: Some(*n),
+                list_value: None,
+                table_value: None,
             },
             CifValue::Unknown => JsCifValue {
                 value_type: "Unknown".to_string(),
                 text_value: None,
                 numeric_value: None,
+                list_value: None,
+                table_value: None,
             },
             CifValue::NotApplicable => JsCifValue {
                 value_type: "NotApplicable".to_string(),
                 text_value: None,
                 numeric_value: None,
+                list_value: None,
+                table_value: None,
+            },
+            CifValue::List(values) => JsCifValue {
+                value_type: "List".to_string(),
+                text_value: None,
+                numeric_value: None,
+                list_value: Some(values.iter().map(|v| v.into()).collect()),
+                table_value: None,
+            },
+            CifValue::Table(map) => JsCifValue {
+                value_type: "Table".to_string(),
+                text_value: None,
+                numeric_value: None,
+                list_value: None,
+                table_value: Some(map.iter().map(|(k, v)| (k.clone(), v.into())).collect()),
             },
         }
     }
@@ -386,6 +498,30 @@ impl JsCifDocument {
                 Err(error_msg)
             }
         }
+    }
+
+    /// Get the CIF version of this document
+    ///
+    /// Returns the detected or explicitly set CIF version.
+    /// CIF 2.0 is indicated by the `#\#CIF_2.0` magic header.
+    /// Documents without this header default to CIF 1.1.
+    #[wasm_bindgen(getter)]
+    pub fn version(&self) -> JsCifVersion {
+        self.inner.version.into()
+    }
+
+    /// Check if this document is CIF 2.0
+    ///
+    /// CIF 2.0 adds support for lists, tables, and other advanced features.
+    #[wasm_bindgen(js_name = isCif2)]
+    pub fn is_cif2(&self) -> bool {
+        matches!(self.inner.version, CifVersion::V2_0)
+    }
+
+    /// Check if this document is CIF 1.1
+    #[wasm_bindgen(js_name = isCif1)]
+    pub fn is_cif1(&self) -> bool {
+        matches!(self.inner.version, CifVersion::V1_1)
     }
 
     /// Get the number of blocks

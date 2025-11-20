@@ -3,7 +3,7 @@
 //! This module provides Python-native wrappers around the core CIF parsing
 //! functionality, following Python naming conventions and idioms.
 
-use crate::{CifBlock, CifDocument, CifError, CifFrame, CifLoop, CifValue};
+use crate::{CifBlock, CifDocument, CifError, CifFrame, CifLoop, CifValue, CifVersion};
 use pyo3::exceptions::{PyIOError, PyIndexError, PyKeyError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyString;
@@ -23,6 +23,59 @@ fn cif_error_to_py_err(err: CifError) -> PyErr {
             } else {
                 PyValueError::new_err(format!("Invalid CIF structure: {message}"))
             }
+        }
+    }
+}
+
+/// Python wrapper for CifVersion enum
+#[pyclass(name = "Version", eq, eq_int)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum PyVersion {
+    /// CIF 1.1 specification
+    V1_1 = 0,
+    /// CIF 2.0 specification
+    V2_0 = 1,
+}
+
+#[pymethods]
+impl PyVersion {
+    /// String representation
+    fn __str__(&self) -> &'static str {
+        match self {
+            PyVersion::V1_1 => "CIF 1.1",
+            PyVersion::V2_0 => "CIF 2.0",
+        }
+    }
+
+    /// Debug representation
+    fn __repr__(&self) -> String {
+        format!(
+            "Version.{}",
+            match self {
+                PyVersion::V1_1 => "V1_1",
+                PyVersion::V2_0 => "V2_0",
+            }
+        )
+    }
+
+    /// Check if this is CIF 2.0
+    #[getter]
+    fn is_cif2(&self) -> bool {
+        matches!(self, PyVersion::V2_0)
+    }
+
+    /// Check if this is CIF 1.1
+    #[getter]
+    fn is_cif1(&self) -> bool {
+        matches!(self, PyVersion::V1_1)
+    }
+}
+
+impl From<CifVersion> for PyVersion {
+    fn from(version: CifVersion) -> Self {
+        match version {
+            CifVersion::V1_1 => PyVersion::V1_1,
+            CifVersion::V2_0 => PyVersion::V2_0,
         }
     }
 }
@@ -60,6 +113,18 @@ impl PyValue {
         matches!(self.inner, CifValue::NotApplicable)
     }
 
+    /// Check if this is a list value (CIF 2.0 only)
+    #[getter]
+    fn is_list(&self) -> bool {
+        matches!(self.inner, CifValue::List(_))
+    }
+
+    /// Check if this is a table value (CIF 2.0 only)
+    #[getter]
+    fn is_table(&self) -> bool {
+        matches!(self.inner, CifValue::Table(_))
+    }
+
     /// Get the value as text (returns None if not a text value)
     #[getter]
     fn text(&self) -> Option<String> {
@@ -80,6 +145,8 @@ impl PyValue {
             CifValue::Numeric(_) => "numeric".to_string(),
             CifValue::Unknown => "unknown".to_string(),
             CifValue::NotApplicable => "not_applicable".to_string(),
+            CifValue::List(_) => "list".to_string(),
+            CifValue::Table(_) => "table".to_string(),
         }
     }
 
@@ -90,6 +157,22 @@ impl PyValue {
             CifValue::Numeric(n) => Ok(n.into_pyobject(py)?.into_any().unbind()),
             CifValue::Unknown => Ok(py.None()),
             CifValue::NotApplicable => Ok(py.None()),
+            CifValue::List(values) => {
+                // Convert Vec<CifValue> to Python list
+                let py_list: Vec<Py<PyAny>> = values
+                    .iter()
+                    .map(|v| PyValue::from(v.clone()).to_python(py))
+                    .collect::<PyResult<Vec<_>>>()?;
+                Ok(py_list.into_pyobject(py)?.into_any().unbind())
+            }
+            CifValue::Table(map) => {
+                // Convert HashMap to Python dict
+                let py_dict: HashMap<String, Py<PyAny>> = map
+                    .iter()
+                    .map(|(k, v)| Ok((k.clone(), PyValue::from(v.clone()).to_python(py)?)))
+                    .collect::<PyResult<HashMap<_, _>>>()?;
+                Ok(py_dict.into_pyobject(py)?.into_any().unbind())
+            }
         }
     }
 
@@ -100,6 +183,20 @@ impl PyValue {
             CifValue::Numeric(n) => n.to_string(),
             CifValue::Unknown => "?".to_string(),
             CifValue::NotApplicable => ".".to_string(),
+            CifValue::List(values) => {
+                let items: Vec<String> = values
+                    .iter()
+                    .map(|v| PyValue::from(v.clone()).__str__())
+                    .collect();
+                format!("[{}]", items.join(" "))
+            }
+            CifValue::Table(map) => {
+                let items: Vec<String> = map
+                    .iter()
+                    .map(|(k, v)| format!("{}:{}", k, PyValue::from(v.clone()).__str__()))
+                    .collect();
+                format!("{{{}}}", items.join(" "))
+            }
         }
     }
 
@@ -478,6 +575,28 @@ impl PyDocument {
             .map_err(cif_error_to_py_err)
     }
 
+    /// Get the CIF version of this document
+    ///
+    /// Returns the detected or explicitly set CIF version.
+    /// CIF 2.0 is indicated by the `#\#CIF_2.0` magic header.
+    /// Documents without this header default to CIF 1.1.
+    #[getter]
+    fn version(&self) -> PyVersion {
+        self.inner.version.into()
+    }
+
+    /// Check if this document is CIF 2.0
+    ///
+    /// CIF 2.0 adds support for lists, tables, and other advanced features.
+    fn is_cif2(&self) -> bool {
+        matches!(self.inner.version, CifVersion::V2_0)
+    }
+
+    /// Check if this document is CIF 1.1
+    fn is_cif1(&self) -> bool {
+        matches!(self.inner.version, CifVersion::V1_1)
+    }
+
     /// Get the number of blocks
     fn __len__(&self) -> usize {
         self.inner.blocks.len()
@@ -588,6 +707,7 @@ impl PyDocumentIterator {
 /// Module initialization function
 #[pymodule]
 fn _cif_parser(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<PyVersion>()?;
     m.add_class::<PyDocument>()?;
     m.add_class::<PyDocumentIterator>()?;
     m.add_class::<PyBlock>()?;

@@ -31,7 +31,7 @@ pub mod loop_struct;
 pub mod value;
 
 pub use block::CifBlock;
-pub use document::CifDocument;
+pub use document::{CifDocument, CifVersion};
 pub use frame::CifFrame;
 pub use loop_struct::CifLoop;
 pub use value::CifValue;

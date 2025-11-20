@@ -1,6 +1,6 @@
 //! Data block and save frame parsing logic.
 
-use crate::ast::{CifBlock, CifFrame, CifValue};
+use crate::ast::{CifBlock, CifFrame, CifValue, CifVersion};
 use crate::builder::BlockBuilder;
 use crate::error::CifError;
 use crate::parser::helpers::{extract_location, extract_text};
@@ -9,7 +9,7 @@ use crate::Rule;
 use pest::iterators::Pair;
 
 /// Parse a data block from the parse tree
-pub(crate) fn parse_datablock(pair: Pair<Rule>) -> Result<CifBlock, CifError> {
+pub(crate) fn parse_datablock(pair: Pair<Rule>, version: CifVersion) -> Result<CifBlock, CifError> {
     let mut builder = BlockBuilder::new(String::new());
 
     for inner_pair in pair.into_inner() {
@@ -19,15 +19,15 @@ pub(crate) fn parse_datablock(pair: Pair<Rule>) -> Result<CifBlock, CifError> {
                 builder.block_mut().name = name;
             }
             Rule::dataitem => {
-                let (tag, value) = parse_dataitem(inner_pair)?;
+                let (tag, value) = parse_dataitem(inner_pair, version)?;
                 builder.add_item(tag, value);
             }
             Rule::loop_block => {
-                let loop_ = parse_loop(inner_pair)?;
+                let loop_ = parse_loop(inner_pair, version)?;
                 builder.start_loop(loop_);
             }
             Rule::frame => {
-                let frame = parse_frame(inner_pair)?;
+                let frame = parse_frame(inner_pair, version)?;
                 builder.add_frame(frame);
             }
             _rule => {
@@ -40,7 +40,10 @@ pub(crate) fn parse_datablock(pair: Pair<Rule>) -> Result<CifBlock, CifError> {
 }
 
 /// Parse a data item (tag-value pair) from the parse tree
-pub(crate) fn parse_dataitem(pair: Pair<Rule>) -> Result<(String, CifValue), CifError> {
+pub(crate) fn parse_dataitem(
+    pair: Pair<Rule>,
+    version: CifVersion,
+) -> Result<(String, CifValue), CifError> {
     let item_location = extract_location(&pair);
     let inner: Vec<_> = pair.into_inner().collect();
 
@@ -60,7 +63,7 @@ pub(crate) fn parse_dataitem(pair: Pair<Rule>) -> Result<(String, CifValue), Cif
 
     let tag = extract_text(tag_pair);
     let value = if let Some(vp) = value_pair {
-        CifValue::parse_value(vp.as_str())
+        crate::parser::value::parse_value(vp.clone(), version)?
     } else {
         CifValue::Unknown
     };
@@ -69,7 +72,7 @@ pub(crate) fn parse_dataitem(pair: Pair<Rule>) -> Result<(String, CifValue), Cif
 }
 
 /// Parse a save frame from the parse tree
-pub(crate) fn parse_frame(pair: Pair<Rule>) -> Result<CifFrame, CifError> {
+pub(crate) fn parse_frame(pair: Pair<Rule>, version: CifVersion) -> Result<CifFrame, CifError> {
     let frame_location = extract_location(&pair);
     let inner: Vec<_> = pair.into_inner().collect();
 
@@ -91,11 +94,11 @@ pub(crate) fn parse_frame(pair: Pair<Rule>) -> Result<CifFrame, CifError> {
                 // Already processed
             }
             Rule::dataitem => {
-                let (tag, value) = parse_dataitem(inner_pair)?;
+                let (tag, value) = parse_dataitem(inner_pair, version)?;
                 frame.items.insert(tag, value);
             }
             Rule::loop_block => {
-                let loop_ = parse_loop(inner_pair)?;
+                let loop_ = parse_loop(inner_pair, version)?;
                 frame.loops.push(loop_);
             }
             _rule => {

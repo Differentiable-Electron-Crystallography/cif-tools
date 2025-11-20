@@ -1,264 +1,429 @@
-// CIF 1.1 Grammar in Pest PEG format
-// Based on: https://www.iucr.org/resources/cif/spec/version1.1/cifsyntax
-// Paragraphs refer to formal grammar's defined at the URL.
+// ================================================================================
+// CIF 2.0 Grammar in Pest PEG Format
+// ================================================================================
+//
+// Based on the formal EBNF specification from:
+// https://www.iucr.org/__data/assets/text_file/0009/112131/CIF2-ENBF.txt
+//
+// This grammar follows CIF 2.0 EBNF as the source of truth, with notes where
+// CIF 1.1 differs. See docs/reference/cif-versions.md for details.
+//
+// Naming conventions:
+// - CIF 2.0 EBNF uses hyphenated names (data-heading, container-code)
+// - Pest uses snake_case (data_heading, container_code)
+// - Production names match EBNF names where possible
+//
+// ================================================================================
 
-// ===== PART 1: BASIC CHARACTER SETS =====
-// Reference: Table 2.2.7.1 - Printable character set
+// ===== PART 1: CHARACTER SET =====
+// Reference: CIF 2.0 EBNF "allchars" production
 
-// Paragraph 42: OrdinaryChar
-// An "ordinary character", <OrdinaryChar>, is any character that may be used in an
-// unquoted string, excluding the special characters used as separators in the syntax.
-// Production: <OrdinaryChar> ::= ! % & ()*+,-./0-9:  <=>?@A-Z[]  \ ^  `a-z{|}~
+// CIF 2.0 EBNF: allchars = ?U+0009? | ?U+000A? | ?U+000D? | ?U+0020 - U+007E?
+//   | ?U+00A0 - U+D7FF? | ?U+E000 - U+FDCF? | ?U+FDF0 - U+FFFD?
+//   | ?U+10000 - U+1FFFD? | ... (all Unicode planes to U+10FFFD)
+//
+// Allowed characters: Tab, LF, CR, and most Unicode code points
+// Excluded: Control characters, surrogates, non-characters
+//
+// Pest implementation: Use ANY token (all Unicode) with explicit exclusions
+allchars = { ANY }
+
+// CIF 2.0 EBNF: char = allchars - line-term
+// Any allowed character except line terminators
+char = { !line_term ~ ANY }
+
+// CIF 2.0 EBNF: non-blank-char = char - inline-wspace
+// Any character except space, tab, and line terminators
+//
+// CIF 1.1 Note: Was limited to ASCII printable (U+0021 to U+007E)
+non_blank_char = { !inline_wspace ~ char }
+
+// ===== PART 2: WHITESPACE AND LINE ENDINGS =====
+// Reference: CIF 2.0 EBNF whitespace productions
+
+// CIF 2.0 EBNF: inline-wspace = ?U+0020? | ?U+0009?
+// Only ASCII space and tab are significant as inline whitespace
+inline_wspace = { " " | "\t" }
+
+// CIF 2.0 EBNF: line-term = ( ?U+000D?, [ ?U+000A? ] ) | ?U+000A?
+// Matches: CR, LF, or CRLF
+// CIF 2.0 normalizes all line endings to LF semantically
+line_term = { "\r\n" | "\r" | "\n" }
+
+// CIF 2.0 EBNF: comment = '#', { char }
+// A comment is a hash symbol followed by any characters until end of line
+comment = { "#" ~ (!line_term ~ ANY)* }
+
+// CIF 2.0 EBNF: wspace-to-eol = { inline-wspace }, [ comment ], line-term
+// Whitespace (spaces/tabs), optional comment, ending with line terminator
+wspace_to_eol = { inline_wspace* ~ comment? ~ line_term }
+
+// CIF 2.0 EBNF: wspace-any = { wspace-to-eol }, { inline-wspace }
+// Possibly-empty run of whitespace and comments; may span multiple lines
+wspace_any = { wspace_to_eol* ~ inline_wspace* }
+
+// CIF 2.0 EBNF: wspace-lines = [ inline-wspace, { inline-wspace }, [ comment ] ],
+//                               line-term, { wspace-to-eol }
+// Nonempty whitespace ending with line terminator; may span multiple lines
+wspace_lines = { (inline_wspace+ ~ comment?)? ~ line_term ~ wspace_to_eol* }
+
+// CIF 2.0 EBNF: wspace = ( inline-wspace | line-term ), wspace-any
+// Nonempty run of whitespace and possibly comments; may span multiple lines
+wspace = { (inline_wspace | line_term) ~ wspace_any }
+
+// Backward compatibility aliases (CIF 1.1 naming)
+ws_char = { inline_wspace | line_term }
+whitespace = { wspace }
+ws_or_eof = { wspace | EOI }
+
+// ===== PART 3: RESERVED WORDS / KEYWORDS =====
+// Reference: CIF 2.0 EBNF token productions
+
+// CIF 2.0 EBNF: data-token = ( 'D' | 'd' ), ( 'A' | 'a' ), ( 'T' | 't' ), ( 'A' | 'a' ), '_'
+// Case-insensitive "data_" keyword
+data_token = { ^"data_" }
+
+// CIF 2.0 EBNF: save-token = ( 'S' | 's' ), ( 'A' | 'a' ), ( 'V' | 'v' ), ( 'E' | 'e' ), '_'
+// Case-insensitive "save_" keyword
+save_token = { ^"save_" }
+
+// CIF 2.0 EBNF: loop-token = ( 'L' | 'l' ), ( 'O' | 'o' ), ( 'O' | 'o' ), ( 'P' | 'p' ), '_'
+// Case-insensitive "loop_" keyword
+loop_token = { ^"loop_" ~ &ws_or_eof }
+
+// CIF 2.0 EBNF: global-token = ( 'G' | 'g' ), ... , '_'
+// Case-insensitive "global_" keyword (reserved, not used in CIF)
+global_token = { ^"global_" ~ &ws_or_eof }
+
+// CIF 2.0 EBNF: stop-token = ( 'S' | 's' ), ( 'T' | 't' ), ( 'O' | 'o' ), ( 'P' | 'p' ), '_'
+// Case-insensitive "stop_" keyword (deprecated, reserved)
+stop_token = { ^"stop_" ~ &ws_or_eof }
+
+// Combined keyword matcher for exclusion in wsdelim_string
+keyword = { data_token | save_token | loop_token | global_token | stop_token }
+
+// Backward compatibility aliases (CIF 1.1 naming)
+str_data = { data_token }
+str_save = { save_token }
+str_loop = { loop_token }
+str_global = { global_token }
+str_stop = { stop_token }
+
+// ===== PART 4: STRING VALUES =====
+// Reference: CIF 2.0 EBNF string productions
+
+// --- 4.1: Simple Quoted Strings ---
+
+// CIF 2.0 EBNF: quote-delim = '"'
+quote_delim = { "\"" }
+
+// CIF 2.0 EBNF: apostrophe-delim = "'"
+apostrophe_delim = { "'" }
+
+// CIF 2.0 EBNF: quote-content = { char - quote-delim }
+// Any characters except the quote delimiter
+// CIF 1.1 Note: Did not allow newlines; CIF 2.0 does
+quote_content = { (!quote_delim ~ char)* }
+
+// CIF 2.0 EBNF: apostrophe-content = { char - apostrophe-delim }
+apostrophe_content = { (!apostrophe_delim ~ char)* }
+
+// CIF 2.0 EBNF: quoted-string = ( quote-delim, quote-content, quote-delim )
+//                             | ( apostrophe-delim, apostrophe-content, apostrophe-delim )
+// Single or double quoted strings
+quoted_string = {
+    (quote_delim ~ quote_content ~ quote_delim) |
+    (apostrophe_delim ~ apostrophe_content ~ apostrophe_delim)
+}
+
+// Backward compatibility aliases (CIF 1.1 naming)
+singlequoted = { apostrophe_delim ~ apostrophe_content ~ apostrophe_delim }
+doublequoted = { quote_delim ~ quote_content ~ quote_delim }
+
+// --- 4.2: Triple-Quoted Strings (CIF 2.0 only) ---
+
+// CIF 2.0 EBNF: quote3-delim = '"""'
+quote3_delim = { "\"\"\"" }
+
+// CIF 2.0 EBNF: apostrophe3-delim = "'''"
+apostrophe3_delim = { "'''" }
+
+// CIF 2.0 EBNF: quote3-content = { [ '"', [ '"' ] ], not-quote, { not-quote } }
+// Content can contain single or double quotes, but not triple quotes
+// Simplified implementation: Match anything until triple-quote delimiter
+quote3_content = { (!"\"\"\"" ~ ANY)* }
+
+// CIF 2.0 EBNF: apostrophe3-content = { [ "'", [ "'" ] ], not-apostrophe, { not-apostrophe } }
+apostrophe3_content = { (!"'''" ~ ANY)* }
+
+// CIF 2.0 EBNF: triple-quoted-string = ( quote3-delim, quote3-content, quote3-delim )
+//                                    | ( apostrophe3-delim, apostrophe3-content, apostrophe3-delim )
+triple_quoted_string = {
+    (quote3_delim ~ quote3_content ~ quote3_delim) |
+    (apostrophe3_delim ~ apostrophe3_content ~ apostrophe3_delim)
+}
+
+// --- 4.3: Text Fields (Semicolon-Delimited) ---
+
+// CIF 2.0 EBNF: text-delim = line-term, ';'
+// Text field delimiter: newline followed by semicolon at start of line
+text_delim = { line_term ~ ";" }
+
+// CIF 2.0 EBNF: text-content = { allchars } - ( { allchars }, text-delim, { allchars } )
+// Any content that doesn't contain the text delimiter
+text_content = { (!text_delim ~ ANY)* }
+
+// CIF 2.0 EBNF: text-field = text-delim, text-content, text-delim
+// Multi-line text field bounded by semicolons at line starts
+text_field = { text_delim ~ text_content ~ text_delim }
+
+// Backward compatibility alias (CIF 1.1 naming)
+textfield = { text_field }
+
+// --- 4.4: Whitespace-Delimited Strings (Unquoted) ---
+
+// CIF 2.0 EBNF: restrict-char = non-blank-char - ( '[' | ']' | '{' | '}' )
+// CIF 1.1 Note: Did not exclude [ ] { } (not needed without lists/tables)
+//
+// IMPLEMENTATION: Following CIF 2.0 spec strictly - exclude brackets and braces.
+// This means that even in CIF 1.1 files, these characters must be quoted if used
+// as literal text values. This is necessary for the PEG parser to correctly handle
+// empty lists/tables in CIF 2.0 mode.
+restrict_char = { !("[" | "]" | "{" | "}") ~ non_blank_char }
+
+// CIF 2.0 EBNF: lead-char = restrict-char - ( '"' | '#' | "'" | '_' )
+// First character of wsdelim string (excludes quote starters and data names)
+lead_char = { !("\"" | "#" | "'" | "_") ~ restrict_char }
+
+// CIF 2.0 EBNF: wsdelim-string = ( lead-char, {restrict-char} )
+//     - ( ( data-token | save-token ), { non-blank-char } | loop-token | global-token | stop-token )
+// Whitespace-delimited string that doesn't match keywords
+//
+// PERMISSIVE: Allows [{]}] for CIF 1.1 compatibility
+// Parser will check version and parse [{] as list/table delimiters in CIF 2.0 mode
+wsdelim_string = {
+    !keyword ~
+    lead_char ~
+    restrict_char*
+}
+
+// CIF 2.0 EBNF: wsdelim-string-sol = wsdelim-string - ( ';', { non-blank-char } )
+// wsdelim string at start of line (cannot start with semicolon)
+wsdelim_string_sol = { !(";") ~ wsdelim_string }
+
+// Backward compatibility alias (CIF 1.1 naming)
+unquoted = { wsdelim_string }
+
+// CIF 1.1 optimization (simple unquoted with ordinary chars only)
+// Kept for performance, though ordinary_char is no longer explicitly defined
 ordinary_char = {
-    "!"
-  | "%"
-  | "&"
-  | "("
-  | ")"
-  | "*"
-  | "+"
-  | ","
-  | "-"
-  | "."
-  | "/"
-  | '0'..'9'
-  | ":"
-  | "<"
-  | "="
-  | ">"
-  | "?"
-  | "@"
-  | 'A'..'Z'
-  | "["
-  | "]"
-  | "\\"
-  | "^"
-  | "`"
-  | 'a'..'z'
-  | "{"
-  | "|"
-  | "}"
-  | "~"
+    "!" | "%" | "&" | "(" | ")" | "*" | "+" | "," | "-" | "." | "/" |
+    '0'..'9' | ":" | "<" | "=" | ">" | "?" | "@" | 'A'..'Z' | "\\" |
+    "^" | "`" | 'a'..'z' | "|" | "~"
 }
-
-// Paragraph 41: NonBlankChar
-// A "non-blank character", <NonBlankChar>, is any printable character other than a
-// space <SP>, a tab <HT> or the special character _.
-// Production: <NonBlankChar> ::= !"#$%&'()*+,-./0-9:;<=>?@A-Z[\]^_`a-z{|}~
-nonblank_ch = { '\x21'..'\x7E' }
-// '!' through '~'
-
-// Paragraph 40: AnyPrintChar
-// An "any print character", <AnyPrintChar>, is a printable character, a <SP>
-// character or a <HT> character.
-// Production: <AnyPrintChar> ::= <SP> | <HT> | !"#$%&'()*+,-./0-9:;<=>?@A-Z[\]^_`a-z{|}~
-anyprint_ch = { ' '..'~' | "\t" }
-
-// Paragraph 43: WhiteSpace
-// "White space", <WhiteSpace>, is the generalization of the ASCII <SP> character,
-// and includes the characters <SP>, <HT>, <eol> and the comments.
-// Production: <WhiteSpace> ::= {<SP> | <HT> | <eol> | <Comments> | <TokenizedComments>}+
-ws_char = { " " | "\t" | "\n" | "\r" }
-
-// ===== PART 2: COMMENTS AND WHITESPACE =====
-
-// Paragraph 45: Comments
-// A "comment" is defined to be initiated with the character # followed by any sequence
-// of characters. The only characters not allowed are those in the production <eol>,
-// which <eol> terminates a comment.
-// Production: <Comments> ::= { '#' {<AnyPrintChar>}* <eol>}+
-comment = { "#" ~ (!"\n" ~ ANY)* }
-
-// Paragraph 45: TokenizedComments
-// Comments recognized after blanks (space, tab or <eol>)
-// Production: <TokenizedComments> ::= { <SP> | <HT> | <eol> |}+ <Comments>
-// Note: In Pest, this is handled by the whitespace rule composition
-
-// Paragraph 43: WhiteSpace (implementation)
-// Combining ws_char and comments as per the production
-whitespace = { (ws_char | comment)+ }
-
-// Helper: WhiteSpace or EOF
-ws_or_eof = { whitespace | EOI }
-
-// ===== PART 3: RESERVED WORDS =====
-// Paragraph 19: Reserved words
-
-// Paragraph 27: Data block header
-// A "data block header", data_<blockname>, signals the beginning of a data block
-// Production: data_<blockname> where <blockname> is {<NonBlankChar>}+
-str_data = { ^"data_" }
-
-// Paragraph 19: loop_ keyword
-// The STAR keyword loop_ signals that the next list of data names should be
-// collected together in a table of data values.
-// Production: loop_ (case-insensitive)
-str_loop = { ^"loop_" ~ &ws_or_eof }
-
-// Paragraph 29: Global block
-// A "global block" is opened by the reserved word global_ appearing in the first
-// column of a line, followed by white space.
-// Production: global_
-str_global = { ^"global_" ~ &ws_or_eof }
-
-// Paragraph 30: Save frame
-// A "save frame" is bounded by the reserved word save_ appearing in the first column
-// of a line and begins with save_<framename>
-// Production: save_<framename> where <framename> is {<NonBlankChar>}+
-str_save = { ^"save_" }
-
-// Paragraph 19: stop_ keyword
-// The stop_ reserved word was used in earlier STAR proposals to close a loop structure
-// Production: stop_ (now deprecated but still recognized)
-str_stop = { ^"stop_" ~ &ws_or_eof }
-
-// Combined keywords
-keyword = { str_data | str_loop | str_global | str_save | str_stop }
-
-// ===== PART 4: CHARACTER STRINGS =====
-// Paragraph 20: Quoted strings
-
-// Helper for end of quoted string detection
-endq_single = { "'" ~ &(ws_char | "#" | EOI) }
-endq_double = { "\"" ~ &(ws_char | "#" | EOI) }
-
-// Paragraph 20: Single-quoted string
-// A string of characters bounded by single quote characters (') (ASCII 39)
-// Production: <SingleQuotedString> ::= <single_quote>{<AnyPrintChar>}*<single_quote>
-singlequoted = { "'" ~ (!endq_single ~ !"\n" ~ ANY)* ~ endq_single }
-
-// Paragraph 20: Double-quoted string
-// A string of characters bounded by double quote characters (") (ASCII 34)
-// Production: <DoubleQuotedString> ::= <double_quote>{<AnyPrintChar>}*<double_quote>
-doublequoted = { "\"" ~ (!endq_double ~ !"\n" ~ ANY)* ~ endq_double }
-
-// Paragraph 21: Text field
-// A "text field" is a character string starting with a semicolon character ;
-// as the first character of a line.
-// Production: <TextField> ::= <semicolon><eol>{{<AnyPrintChar>}*<eol>}*<semicolon>
-//
-// FIXED: Rewrote textfield rule to properly handle text fields in document context.
-// The previous field_sep-based implementation failed when text fields appeared
-// within data blocks because field_sep required SOI (start of input) or \n;,
-// but couldn't match the ending semicolon correctly in document parsing.
-//
-// New implementation directly matches:
-// - ";" followed by newline, content (until \n; or EOI), newline, ";" OR
-// - ";" followed by content (until \n; or EOI), newline, ";"
-// This handles both multi-line text fields and single-line text fields correctly.
-textfield = {
-    (";" ~ "\n" ~ (!(("\n" ~ ";") | EOI) ~ ANY)* ~ "\n" ~ ";") |
-    (";" ~ (!(("\n" ~ ";") | EOI) ~ ANY)* ~ "\n" ~ ";")
-}
-
-// Paragraph 20: Unquoted string
-// An unquoted string is a contiguous string of non-white-space characters, which
-// starts with an ordinary character
-// Production: <UnquotedString> ::= <OrdinaryChar>{<NonBlankChar>}*
-unquoted = {
-    !keyword ~ !(^"_" | "$" | "#") ~ nonblank_ch+
-}
-
-// Optimization: simple unquoted (ordinary chars only)
 simunq = { ordinary_char+ ~ &ws_char }
 
-// ===== PART 5: DATA NAMES (TAGS) =====
+// ===== PART 5: DATA STRUCTURES (CIF 2.0 only) =====
+// Reference: CIF 2.0 EBNF composite value productions
 
-// Paragraph 18: Data names
-// A "data name" is a character string starting with an underscore character <_>.
-// Production: <Tag> ::= <underscore>{<NonBlankChar>}+
-tag = { "_" ~ nonblank_ch+ }
+// Forward declaration for recursive data_value
+data_value = {
+    triple_quoted_string |
+    quoted_string |
+    list |
+    table |
+    text_field |
+    wsdelim_string
+}
+
+// --- 5.1: Lists ---
+
+// CIF 2.0 EBNF: list = '[', [ list-values-start, { wspace-data-value } ], [ wspace ], ']'
+// A list contains zero or more whitespace-separated data values
+list = {
+    "[" ~
+    wspace_any ~
+    (data_value ~ (wspace ~ data_value)*)? ~
+    wspace? ~
+    "]"
+}
+
+// --- 5.2: Tables ---
+
+// CIF 2.0 EBNF: table-entry = ( quoted-string | triple-quoted-string ),
+//                             ':', ( nospace-value | wsdelim-string | wspace-data-value )
+// Key-value pair in table (key must be quoted, value can be any data value)
+// CIF 2.0 spec: Only inline whitespace (no newlines) allowed around colon
+// NOTE: triple_quoted_string MUST come before quoted_string to avoid matching "" instead of """
+table_entry = {
+    (triple_quoted_string | quoted_string) ~
+    inline_wspace* ~ ":" ~ inline_wspace* ~
+    data_value
+}
+
+// CIF 2.0 EBNF: table = '{', [ wspace-any, table-entry, { wspace, table-entry } ], [ wspace ], '}'
+// A table contains zero or more whitespace-separated key-value pairs
+table = {
+    "{" ~
+    wspace_any ~
+    (table_entry ~ (wspace ~ table_entry)*)? ~
+    wspace? ~
+    "}"
+}
 
 // ===== PART 6: DATA VALUES =====
+// Reference: CIF 2.0 EBNF value productions
 
-// Paragraph 15: Data values
-// The syntax of data values within CIFs is fully defined
-// Production: <Value> ::= {'.'}|{'?'}|{<Numeric>}|{<CharString>}|{<TextField>}
-value = { simunq | singlequoted | doublequoted | textfield | unquoted }
+// Value types for parsing context (backward compatibility)
+item_value = { data_value }
+loop_value = { data_value }
 
-// Specific tag and value types for parsing context
-item_tag   = { tag }
-item_value = { value }
-loop_tag   = { tag }
-loop_value = { value }
+// CIF 1.1 alias
+value = { data_value }
 
-// ===== PART 7: DATA BLOCKS AND GLOBAL BLOCKS =====
+// ===== PART 7: DATA NAMES =====
+// Reference: CIF 2.0 EBNF data-name production
 
-// Paragraph 27: Data block name
-// Production: <DataBlockName> ::= {<NonBlankChar>}*
-datablockname = { nonblank_ch* }
+// CIF 2.0 EBNF: data-name = '_', non-blank-char, { non-blank-char }
+// A data name (tag) starts with underscore followed by 1+ non-blank characters
+//
+// CIF 1.1 implementation: tag = { "_" ~ nonblank_ch+ }
+// Status: ✅ Matches CIF 2.0
+data_name = { "_" ~ non_blank_char+ }
 
-// Paragraph 27/29: Block heading
-// Either data_ with name OR global_
-// Production: <DataBlockHeading> ::= <data>{<NonBlankChar>}+ | <global>
-datablockheading = { (str_data ~ datablockname) | str_global }
+// Backward compatibility aliases (CIF 1.1 naming)
+tag = { data_name }
+item_tag = { data_name }
+loop_tag = { data_name }
+nonblank_ch = { '\x21'..'\x7E' }  // Keep for CIF 1.1 compat
 
-// Paragraph 30: Save frame name
-// Production: <FrameName> ::= {<NonBlankChar>}+
-framename = { nonblank_ch+ }
+// ===== PART 8: DATA BLOCKS AND SAVE FRAMES =====
+// Reference: CIF 2.0 EBNF structural productions
 
-// End frame marker
-endframe = { str_save }
+// CIF 2.0 EBNF: container-code = non-blank-char, { non-blank-char }
+// Name for data blocks or save frames (1+ non-blank characters)
+//
+// CIF 1.1 Bug: Allowed empty names (datablockname = { nonblank_ch* })
+// CIF 2.0 Fix: Requires 1+ characters
+container_code = { non_blank_char+ }
 
-// ===== PART 8: DATA ITEMS AND LOOPS =====
+// CIF 2.0 EBNF: data-heading = data-token, container-code
+// Data block header: "data_" followed by block name
+data_heading = { data_token ~ container_code }
+
+// CIF 2.0 EBNF: save-heading = save-token, container-code
+// Save frame header: "save_" followed by frame name
+save_heading = { save_token ~ container_code }
+
+// End frame marker: "save_" with no name
+endframe = { save_token }
+
+// Backward compatibility aliases (CIF 1.1 naming)
+datablockname = { container_code }
+framename = { container_code }
+datablockheading = { data_heading | global_token }
+
+// ===== PART 9: DATA ITEMS AND LOOPS =====
+// Reference: CIF 2.0 EBNF data productions
 
 // Missing value detection (for error handling)
 missing_value = { &(SOI | "\n") }
 
-// Paragraph 16: Data items
-// A "data item" is a data name followed by an associated data value
-// Production: <DataItem> ::= <Tag> <WhiteSpace> <Value>
+// Data item: tag followed by value
 dataitem = {
-    item_tag ~ whitespace ~ (item_value ~ ws_or_eof | missing_value)
+    item_tag ~ wspace ~ (item_value ~ ws_or_eof | missing_value)
 }
 
-// Loop termination
-loop_end = { (str_stop ~ ws_or_eof)? }
-
-// Loop values section
-// Production: <LoopBody> ::= {<Value> <WhiteSpace>}+
+// CIF 2.0 EBNF: data-loop = loop-token, wspace, data-name, { wspace, data-name },
+//                          wspace-data-value, { wspace-data-value }
+// Loop structure: "loop_" keyword, tags, then values
 loop_values = {
     loop_value ~ (whitespace ~ loop_value)* ~ ws_or_eof
 }
 
-// Paragraph 19: Loop structure
-// A "looped list" of data values is a list of data values preceded by a list
-// of data names, preceded by the reserved case-insensitive word loop_
-// Production: <Loop> ::= <loop> {<Tag> <WhiteSpace>}+ <LoopBody>
+loop_end = { (stop_token ~ ws_or_eof)? }
+
 loop_block = {
-    str_loop ~ whitespace ~ (loop_tag ~ whitespace)+ ~ (loop_values | &(keyword | EOI)) ~ loop_end
+    loop_token ~ wspace ~
+    (loop_tag ~ wspace)+ ~
+    (loop_values | &(keyword | EOI)) ~
+    loop_end
 }
 
-// Paragraph 30: Save frame
-// A "save frame" is bounded by the reserved word save_
-// Production: <SaveFrame> ::= <save>{<NonBlankChar>}+ {<DataItem>|<Loop>}* <save>
+// ===== PART 10: SAVE FRAMES =====
+// Reference: CIF 2.0 EBNF save-frame production
+
+// CIF 2.0 EBNF: save-frame = save-heading, { frame-content }, wspace, save-token
+// Save frame: header, content, closing "save_"
 frame = {
-    str_save ~ framename ~ whitespace ~ (dataitem | loop_block)* ~ endframe ~ ws_or_eof
+    save_heading ~ ws_or_eof ~
+    (dataitem | loop_block)* ~
+    endframe ~ ws_or_eof
 }
 
-// Paragraph 27: Data block
-// A "data block" is a logical grouping of data items, save frames and loops
-// Production: <DataBlock> ::= <DataBlockHeading> {<WhiteSpace> {<DataItem>|<SaveFrame>|<Loop>}}*
-datablock = {
-    datablockheading ~ ws_or_eof ~ (dataitem | loop_block | frame)*
+// ===== PART 11: DATA BLOCKS =====
+// Reference: CIF 2.0 EBNF data-block production
+
+// CIF 2.0 EBNF: data-block = data-heading, { block-content }
+// Data block: header followed by content (data items, loops, save frames)
+data_block = {
+    data_heading ~ ws_or_eof ~
+    (dataitem | loop_block | frame)*
 }
 
-// ===== PART 9: CIF FILE STRUCTURE =====
+// Backward compatibility alias (CIF 1.1 naming)
+datablock = { datablockheading ~ ws_or_eof ~ (dataitem | loop_block | frame)* }
 
-// Paragraph 11: CIF content
-// A CIF is a sequence of data blocks
-// Production: <CIF> ::= {<DataBlock>}+ | {<WhiteSpace>}
+// ===== PART 12: CIF FILE STRUCTURE =====
+// Reference: CIF 2.0 EBNF CIF2-file production
+
+// CIF 2.0 EBNF: magic-code = '#\#CIF_2.0'
+// Version identifier for CIF 2.0 files
+// Note: File content is literally: # \ # C I F _ 2 . 0 (with backslash)
+// In Pest, backslash is escaped as \\ in string literals
+magic_code = { "#\\#CIF_2.0" }
+
+// CIF 2.0 EBNF: file-heading = [ ?U+FEFF? ], magic-code, { inline-wspace }
+// Optional: BOM, magic comment, trailing whitespace
+file_heading = { "\u{FEFF}"? ~ magic_code ~ inline_wspace* }
+
+// CIF 2.0 EBNF: CIF2-file = ( file-heading, [ line-term, [
+//                            wspace-any, data-block,
+//                            { wspace, data-block } ], [ wspace ], [ comment ] ] )
+//                          - ( { allchars }, 2049 * char, { allchars } )
+//
+// Note: 2048 character line limit is validated during parsing, not in grammar
+//
+// For backward compatibility: magic comment is optional
+// - If present → CIF 2.0
+// - If absent → CIF 1.1 (or CIF 2.0 without magic comment)
+file = {
+    SOI ~
+    file_heading? ~
+    wspace_any ~
+    (!EOI ~ datablock+ ~ wspace?)? ~
+    EOI
+}
+
+// Content (data blocks only, for streaming)
 content = { datablock+ }
 
-// Complete CIF file
-// Production: <CIF> ::= {<Comments>}? {<DataBlock>}+ {<WhiteSpace>}?
-file = {
-    SOI ~ whitespace? ~ (!EOI ~ content ~ EOI)?
-}
-
 // Single block parsing (for streaming)
-one_block = {
-    whitespace? ~ (!EOI ~ datablock)
-}
+one_block = { wspace? ~ (!EOI ~ datablock) }
 
-// ===== END OF CIF 1.1 GRAMMAR =====
+// ===== END OF CIF 2.0 GRAMMAR =====
+//
+// This grammar implements the CIF 2.0 EBNF specification with backward
+// compatibility for CIF 1.1 files. Version detection is done at parse time
+// based on the presence of the magic comment.
+//
+// Key CIF 2.0 features:
+// - Unicode character support (UTF-8)
+// - Triple-quoted strings ("""...""" and '''...''')
+// - Lists ([value1 value2 value3])
+// - Tables ({key1:value1 key2:value2})
+// - Newlines allowed in quoted strings
+// - Stricter container naming (1+ characters required)
+//
+// See docs/reference/cif-versions.md for complete documentation.
+// ================================================================================

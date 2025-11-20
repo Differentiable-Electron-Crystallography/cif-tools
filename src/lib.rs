@@ -142,7 +142,7 @@ pub struct CIFParser;
 // ===== Re-exports =====
 
 // AST types
-pub use ast::{CifBlock, CifDocument, CifFrame, CifLoop, CifValue};
+pub use ast::{CifBlock, CifDocument, CifFrame, CifLoop, CifValue, CifVersion};
 
 // Error types
 pub use error::CifError;
@@ -153,6 +153,7 @@ pub use CifDocument as Document;
 pub use CifFrame as Frame;
 pub use CifLoop as Loop;
 pub use CifValue as Value;
+pub use CifVersion as Version;
 
 // ===== Public Convenience Functions =====
 

@@ -1,16 +1,47 @@
 //! Document-level parsing logic (entry point for parsing).
 
-use crate::ast::CifDocument;
+use crate::ast::{CifDocument, CifVersion};
 use crate::error::CifError;
 use crate::parser::block::parse_datablock;
 use crate::{CIFParser, Rule};
 use pest::Parser;
 
-/// Parse a complete CIF file from a string.
+/// Detect CIF version from input by scanning for magic comment.
+///
+/// CIF 2.0 files MUST start with `#\#CIF_2.0` magic comment (after optional BOM).
+/// Files without this comment are treated as CIF 1.1.
+///
+/// This is a fast, lightweight check that scans only the beginning of the file.
+///
+/// # Examples
+/// ```
+/// # use cif_parser::parser::document::detect_version;
+/// # use cif_parser::CifVersion;
+/// assert_eq!(detect_version("#\\#CIF_2.0\ndata_test\n"), CifVersion::V2_0);
+/// assert_eq!(detect_version("data_test\n"), CifVersion::V1_1);
+/// ```
+pub fn detect_version(input: &str) -> CifVersion {
+    // CIF 2.0 EBNF: file-heading = [ ?U+FEFF? ], magic-code, { inline-wspace }
+    // magic-code = '#\#CIF_2.0'
+    // Note: File content is literally: # \ # C I F _ 2 . 0 (with backslash)
+
+    let trimmed = input.trim_start_matches('\u{FEFF}'); // Remove BOM if present
+    let first_line = trimmed.lines().next().unwrap_or("");
+
+    // Check if first line starts with magic comment: #\#CIF_2.0
+    if first_line.trim_start().starts_with("#\\#CIF_2.0") {
+        CifVersion::V2_0
+    } else {
+        CifVersion::V1_1
+    }
+}
+
+/// Parse a complete CIF file from a string (auto-detects version).
 ///
 /// This is the main entry point for parsing. It:
-/// 1. Uses PEST to parse the input string according to the grammar
-/// 2. Converts the parse tree into a typed AST
+/// 1. Detects CIF version by scanning for `#\#CIF_2.0` magic comment
+/// 2. Uses PEST to parse the input string according to the grammar
+/// 3. Converts the parse tree into a typed AST with version-aware parsing
 ///
 /// # Examples
 /// ```
@@ -20,12 +51,18 @@ use pest::Parser;
 /// assert_eq!(doc.blocks.len(), 1);
 /// ```
 pub fn parse_file(input: &str) -> Result<CifDocument, CifError> {
+    // Detect version from magic comment
+    let version = detect_version(input);
+
+    // Parse with PEST
     let pairs = CIFParser::parse(Rule::file, input)?;
-    let mut doc = CifDocument::new();
+
+    // Build AST with detected version
+    let mut doc = CifDocument::new_with_version(version);
 
     for pair in pairs {
         if pair.as_rule() == Rule::file {
-            parse_file_content(pair, &mut doc)?;
+            parse_file_content(pair, &mut doc, version)?;
         }
     }
 
@@ -36,14 +73,26 @@ pub fn parse_file(input: &str) -> Result<CifDocument, CifError> {
 fn parse_file_content(
     pair: pest::iterators::Pair<Rule>,
     doc: &mut CifDocument,
+    version: CifVersion,
 ) -> Result<(), CifError> {
     for inner_pair in pair.into_inner() {
-        if inner_pair.as_rule() == Rule::content {
-            for content_pair in inner_pair.into_inner() {
-                if content_pair.as_rule() == Rule::datablock {
-                    let block = parse_datablock(content_pair)?;
-                    doc.blocks.push(block);
+        match inner_pair.as_rule() {
+            // file rule can contain datablock directly or through content rule
+            Rule::datablock => {
+                let block = parse_datablock(inner_pair, version)?;
+                doc.blocks.push(block);
+            }
+            Rule::content => {
+                // Legacy: content rule contains datablocks
+                for content_pair in inner_pair.into_inner() {
+                    if content_pair.as_rule() == Rule::datablock {
+                        let block = parse_datablock(content_pair, version)?;
+                        doc.blocks.push(block);
+                    }
                 }
+            }
+            _ => {
+                // Skip other rules (file_heading, wspace, etc.)
             }
         }
     }

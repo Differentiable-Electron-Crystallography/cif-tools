@@ -1,6 +1,6 @@
 //! Loop structure parsing logic.
 
-use crate::ast::{CifLoop, CifValue};
+use crate::ast::{CifLoop, CifValue, CifVersion};
 use crate::error::CifError;
 use crate::parser::helpers::{extract_location, extract_text};
 use crate::Rule;
@@ -23,7 +23,7 @@ use pest::iterators::Pair;
 /// # Empty Loops
 ///
 /// Loops with tags but no values are valid (represents an empty table).
-pub(crate) fn parse_loop(pair: Pair<Rule>) -> Result<CifLoop, CifError> {
+pub(crate) fn parse_loop(pair: Pair<Rule>, version: CifVersion) -> Result<CifLoop, CifError> {
     let loop_location = extract_location(&pair);
     let inner: Vec<_> = pair.into_inner().collect();
 
@@ -51,10 +51,11 @@ pub(crate) fn parse_loop(pair: Pair<Rule>) -> Result<CifLoop, CifError> {
                 // Already processed
             }
             Rule::loop_values => {
-                collect_loop_values(inner_pair, &mut values);
+                collect_loop_values(inner_pair, &mut values, version)?;
             }
             Rule::loop_value | Rule::value => {
-                values.push(CifValue::parse_value(inner_pair.as_str()));
+                let value = crate::parser::value::parse_value(inner_pair.clone(), version)?;
+                values.push(value);
             }
             _rule => {
                 // Unknown rule - safely ignored
@@ -67,17 +68,23 @@ pub(crate) fn parse_loop(pair: Pair<Rule>) -> Result<CifLoop, CifError> {
 }
 
 /// Helper to collect values from loop_values rule
-fn collect_loop_values(pair: Pair<Rule>, values: &mut Vec<CifValue>) {
+fn collect_loop_values(
+    pair: Pair<Rule>,
+    values: &mut Vec<CifValue>,
+    version: CifVersion,
+) -> Result<(), CifError> {
     for value_pair in pair.into_inner() {
         match value_pair.as_rule() {
             Rule::loop_value | Rule::value => {
-                values.push(CifValue::parse_value(value_pair.as_str()));
+                let value = crate::parser::value::parse_value(value_pair, version)?;
+                values.push(value);
             }
             _rule => {
                 // Unknown rule - safely ignored
             }
         }
     }
+    Ok(())
 }
 
 /// Organize values into rows based on tag count.

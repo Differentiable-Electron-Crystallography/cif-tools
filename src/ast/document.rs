@@ -5,6 +5,66 @@ use crate::error::CifError;
 use std::fs;
 use std::path::Path;
 
+/// CIF specification version detected or specified for a document.
+///
+/// CIF 2.0 is backward compatible with CIF 1.1, but adds new features:
+/// - Lists: `[value1 value2 value3]`
+/// - Tables: `{key1:value1 key2:value2}`
+/// - Triple-quoted strings: `"""..."""` and `'''...'''`
+/// - Full Unicode support (UTF-8)
+/// - Newlines allowed in quoted strings
+///
+/// # Version Detection
+///
+/// Version is automatically detected when parsing:
+/// - Files starting with `#\#CIF_2.0` are CIF 2.0
+/// - Files without the magic comment default to CIF 1.1
+/// - Files can be forced to a specific version using `parse_with_version()`
+///
+/// # Examples
+///
+/// ```
+/// use cif_parser::{CifVersion, Document};
+///
+/// // CIF 2.0 file (with magic comment)
+/// let cif2 = "#\\#CIF_2.0\ndata_test\n_item [1 2 3]\n";
+/// let doc = Document::parse(cif2).unwrap();
+/// assert_eq!(doc.version, CifVersion::V2_0);
+///
+/// // CIF 1.1 file (no magic comment)
+/// let cif1 = "data_test\n_item value\n";
+/// let doc = Document::parse(cif1).unwrap();
+/// assert_eq!(doc.version, CifVersion::V1_1);
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CifVersion {
+    /// CIF 1.1 specification
+    ///
+    /// https://www.iucr.org/resources/cif/spec/version1.1/cifsyntax
+    V1_1,
+
+    /// CIF 2.0 specification
+    ///
+    /// https://www.iucr.org/__data/assets/text_file/0009/112131/CIF2-ENBF.txt
+    V2_0,
+}
+
+impl Default for CifVersion {
+    /// Default to CIF 1.1 for backward compatibility
+    fn default() -> Self {
+        CifVersion::V1_1
+    }
+}
+
+impl std::fmt::Display for CifVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CifVersion::V1_1 => write!(f, "CIF 1.1"),
+            CifVersion::V2_0 => write!(f, "CIF 2.0"),
+        }
+    }
+}
+
 /// Represents a complete CIF document containing one or more data blocks.
 ///
 /// This is the root container for all parsed CIF data. A CIF file can contain
@@ -59,6 +119,12 @@ use std::path::Path;
 pub struct CifDocument {
     /// All data blocks in this document
     pub blocks: Vec<CifBlock>,
+
+    /// CIF specification version (auto-detected or explicitly set)
+    ///
+    /// Defaults to CIF 1.1 for backward compatibility.
+    /// Set to CIF 2.0 if the file contains the magic comment `#\#CIF_2.0`.
+    pub version: CifVersion,
 }
 
 impl Default for CifDocument {
@@ -68,14 +134,29 @@ impl Default for CifDocument {
 }
 
 impl CifDocument {
-    /// Create a new empty document
+    /// Create a new empty document (defaults to CIF 1.1)
     pub fn new() -> Self {
-        CifDocument { blocks: Vec::new() }
+        CifDocument {
+            blocks: Vec::new(),
+            version: CifVersion::default(),
+        }
     }
 
-    /// Parse a CIF document from a string
+    /// Create a new empty document with a specific CIF version
+    pub fn new_with_version(version: CifVersion) -> Self {
+        CifDocument {
+            blocks: Vec::new(),
+            version,
+        }
+    }
+
+    /// Parse a CIF document from a string (auto-detects version)
     ///
     /// This is the main entry point for parsing CIF content.
+    /// Version is auto-detected:
+    /// - Files with `#\#CIF_2.0` magic comment → CIF 2.0
+    /// - Files without magic comment → CIF 1.1
+    ///
     /// The actual parsing logic is in the `parser` module.
     ///
     /// # Examples
