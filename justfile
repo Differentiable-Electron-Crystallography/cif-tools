@@ -75,7 +75,7 @@ python-typecheck:
 
 # Install Python package in development mode (editable install)
 python-develop:
-    cd {{python_dir}} && uv run maturin develop
+    cd {{python_dir}} && uv sync --extra dev && uv run maturin develop
 
 # Run Python tests (builds extension first)
 python-test: python-develop
@@ -185,7 +185,7 @@ setup:
     @echo "📦 Installing Rust dependencies..."
     cargo fetch
     @echo "📦 Installing Python dependencies..."
-    cd {{python_dir}} && uv sync
+    cd {{python_dir}} && uv sync --extra dev
     @echo "📦 Installing JavaScript dependencies..."
     cd {{js_dir}} && npm install
     @echo "✅ Setup complete"
