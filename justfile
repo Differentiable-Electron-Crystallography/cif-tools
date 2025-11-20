@@ -75,7 +75,7 @@ python-typecheck:
 
 # Install Python package in development mode (editable install)
 python-develop:
-    cd {{python_dir}} && maturin develop
+    cd {{python_dir}} && uv run maturin develop
 
 # Run Python tests (builds extension first)
 python-test: python-develop

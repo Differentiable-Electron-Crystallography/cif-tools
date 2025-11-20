@@ -83,14 +83,6 @@ jobs:
       - name: Install UV
         uses: astral-sh/setup-uv@v4
 
-      - name: Install dependencies
-        run: |
-          cd python
-          uv pip install --system maturin pytest
-
-      - name: Build and install Python package
-        run: just python-build
-
       - name: Run Python tests
         run: just python-test
 
@@ -129,7 +121,7 @@ jobs:
 
       - name: Verify WASM loads
         run: |
-          cd javascript/pkg-node
+          cd pkg-node
           node -e "const cif = require('./cif_parser.js'); console.log('WASM module loaded successfully:', typeof cif.JsCifDocument);"
 
       - name: Run JavaScript tests
