@@ -88,7 +88,9 @@ pub fn parse_value(pair: Pair<Rule>, version: CifVersion) -> Result<CifValue, Ci
         }
 
         // CIF 1.1 and 2.0: Quoted strings
-        Rule::quoted_string | Rule::singlequoted | Rule::doublequoted => parse_quoted_string(pair),
+        Rule::quoted_string | Rule::singlequoted | Rule::doublequoted => {
+            parse_quoted_string(pair, version)
+        }
 
         // CIF 1.1 and 2.0: Text fields
         Rule::text_field | Rule::textfield => parse_text_field(pair),
@@ -163,7 +165,10 @@ fn parse_table_entry(
                 }
             }
             // CIF 1.1 and 2.0: Regular quoted strings
-            Rule::quoted_string | Rule::singlequoted | Rule::doublequoted => {
+            Rule::quoted_string
+            | Rule::singlequoted
+            | Rule::doublequoted
+            | Rule::table_key_quoted => {
                 key = extract_quoted_content(inner_pair.as_str());
             }
             Rule::data_value
@@ -220,9 +225,24 @@ fn parse_triple_quoted(pair: Pair<Rule>) -> Result<CifValue, CifError> {
 }
 
 /// Parse a quoted string (CIF 1.1 and 2.0): `'...'` or `"..."`
-fn parse_quoted_string(pair: Pair<Rule>) -> Result<CifValue, CifError> {
+///
+/// # CIF Version Differences
+///
+/// - **CIF 1.1**: Supports doubled-quote escaping (`'O''Brien'` → `O'Brien`)
+/// - **CIF 2.0**: Doubled quotes are invalid; use triple-quoted strings instead
+fn parse_quoted_string(pair: Pair<Rule>, version: CifVersion) -> Result<CifValue, CifError> {
     let text = pair.as_str();
+    let span = pair.as_span();
     let content = extract_quoted_content(text);
+
+    // VERSION GUARD: CIF 2.0 does not support doubled-quote escaping
+    // Doubled quotes ('' or "") in CIF 2.0 are invalid - use triple quotes instead
+    if version == CifVersion::V2_0 && (content.contains("''") || content.contains("\"\"")) {
+        return Err(CifError::InvalidStructure {
+            message: "Doubled-quote escaping ('''' or \"\"\"\") is not allowed in CIF 2.0. Use triple-quoted strings instead: '''...''' or \"\"\"...\"\"\"".to_string(),
+            location: Some((span.start_pos().line_col().0, span.start_pos().line_col().1)),
+        });
+    }
 
     // Try to parse as number first, fall back to text
     if let Ok(num) = content.parse::<f64>() {

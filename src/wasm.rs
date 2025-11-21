@@ -29,10 +29,8 @@ pub enum JsCifVersion {
     V2_0 = 1,
 }
 
-#[wasm_bindgen]
 impl JsCifVersion {
     /// Get the version as a string
-    #[wasm_bindgen(js_name = toString)]
     pub fn to_string(&self) -> String {
         match self {
             JsCifVersion::V1_1 => "CIF 1.1".to_string(),
@@ -41,13 +39,11 @@ impl JsCifVersion {
     }
 
     /// Check if this is CIF 2.0
-    #[wasm_bindgen(js_name = isCif2)]
     pub fn is_cif2(&self) -> bool {
         matches!(self, JsCifVersion::V2_0)
     }
 
     /// Check if this is CIF 1.1
-    #[wasm_bindgen(js_name = isCif1)]
     pub fn is_cif1(&self) -> bool {
         matches!(self, JsCifVersion::V1_1)
     }
@@ -466,7 +462,7 @@ pub struct JsCifDocument {
 impl JsCifDocument {
     /// Parse a CIF string and return a document
     #[wasm_bindgen]
-    pub fn parse(input: &str) -> Result<JsCifDocument, String> {
+    pub fn parse(input: &str) -> Result<JsCifDocument, JsValue> {
         console_log!("Parsing CIF content of length: {}", input.len());
 
         match CifDocument::parse(input) {
@@ -495,7 +491,7 @@ impl JsCifDocument {
                     }
                 };
                 console_log!("{}", error_msg);
-                Err(error_msg)
+                Err(js_sys::Error::new(&error_msg).into())
             }
         }
     }
@@ -581,7 +577,7 @@ pub fn main() {
 
 /// Parse a CIF string into a document (convenience function)
 #[wasm_bindgen]
-pub fn parse(content: &str) -> Result<JsCifDocument, String> {
+pub fn parse(content: &str) -> Result<JsCifDocument, JsValue> {
     JsCifDocument::parse(content)
 }
 

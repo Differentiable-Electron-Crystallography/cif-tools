@@ -15,7 +15,19 @@ pub(crate) fn parse_datablock(pair: Pair<Rule>, version: CifVersion) -> Result<C
     for inner_pair in pair.into_inner() {
         match inner_pair.as_rule() {
             Rule::datablockheading => {
+                let location = extract_location(&inner_pair);
                 let name = extract_block_name(inner_pair.as_str());
+
+                // CIF 2.0 requires non-empty container names (CIF 1.1 allowed empty names)
+                if version == CifVersion::V2_0
+                    && name.is_empty()
+                    && !inner_pair.as_str().to_lowercase().starts_with("global_")
+                {
+                    return Err(CifError::invalid_structure(
+                        "Empty data block name not allowed in CIF 2.0 (use 'global_' for global blocks)"
+                    ).at_location(location.0, location.1));
+                }
+
                 builder.block_mut().name = name;
             }
             Rule::dataitem => {
@@ -76,21 +88,41 @@ pub(crate) fn parse_frame(pair: Pair<Rule>, version: CifVersion) -> Result<CifFr
     let frame_location = extract_location(&pair);
     let inner: Vec<_> = pair.into_inner().collect();
 
-    // Find framename (more precise error location)
-    let framename_pair = inner
+    // Find save_heading, then extract framename from within it
+    let save_heading_pair = inner
         .iter()
+        .find(|p| p.as_rule() == Rule::save_heading)
+        .ok_or_else(|| {
+            CifError::invalid_structure("Save frame missing heading")
+                .at_location(frame_location.0, frame_location.1)
+        })?;
+
+    // Extract framename from save_heading
+    let framename_pair = save_heading_pair
+        .clone()
+        .into_inner()
         .find(|p| p.as_rule() == Rule::framename)
         .ok_or_else(|| {
             CifError::invalid_structure("Save frame missing name")
                 .at_location(frame_location.0, frame_location.1)
         })?;
 
-    let mut frame = CifFrame::new(extract_text(framename_pair));
+    let frame_name = extract_text(&framename_pair);
+
+    // CIF 2.0 requires non-empty container names (CIF 1.1 allowed empty names)
+    if version == CifVersion::V2_0 && frame_name.is_empty() {
+        return Err(
+            CifError::invalid_structure("Empty save frame name not allowed in CIF 2.0")
+                .at_location(frame_location.0, frame_location.1),
+        );
+    }
+
+    let mut frame = CifFrame::new(frame_name);
 
     // Process remaining elements
     for inner_pair in inner {
         match inner_pair.as_rule() {
-            Rule::framename => {
+            Rule::save_heading => {
                 // Already processed
             }
             Rule::dataitem => {

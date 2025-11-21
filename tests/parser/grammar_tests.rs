@@ -1,4 +1,5 @@
-// Unit tests for each CIF 1.1 grammar production
+// Unit tests for CIF grammar productions (PEST rules)
+// Tests that individual grammar rules parse correctly (version-agnostic)
 // Reference: https://www.iucr.org/resources/cif/spec/version1.1/cifsyntax
 
 use cif_parser::{CIFParser, Rule};
@@ -65,20 +66,6 @@ fn test_nonblank_char() {
     assert_parse_fails!(Rule::nonblank_ch, "\t");
     assert_parse_fails!(Rule::nonblank_ch, "\n");
 }
-
-// TODO: Re-enable when anyprint_ch rule is added to grammar
-// #[test]
-// fn test_anyprint_char() {
-//     // Paragraph 40: AnyPrintChar
-//     assert_parse!(Rule::anyprint_ch, " ");
-//     assert_parse!(Rule::anyprint_ch, "\t");
-//     assert_parse!(Rule::anyprint_ch, "A");
-//     assert_parse!(Rule::anyprint_ch, "~");
-//
-//     // Newline should fail
-//     assert_parse_fails!(Rule::anyprint_ch, "\n");
-//     assert_parse_fails!(Rule::anyprint_ch, "\r");
-// }
 
 // ===== PART 2: COMMENTS AND WHITESPACE (Paragraphs 43, 45) =====
 
@@ -182,15 +169,35 @@ fn test_double_quoted_string() {
 }
 
 #[test]
+fn test_doubled_quote_escaping() {
+    // CIF 1.1: Doubled quotes for escaping (quotes must be followed by whitespace/comment/EOI)
+    // Single quotes with doubled-quote escaping
+    assert_parse!(Rule::singlequoted, "'O''Brien' ");
+    assert_parse!(Rule::singlequoted, "'can''t'\n");
+    assert_parse!(Rule::singlequoted, "'it''s'#comment");
+    assert_parse!(Rule::singlequoted, "''''\t"); // Four single quotes = escaped quote
+
+    // Double quotes with doubled-quote escaping
+    assert_parse!(Rule::doublequoted, "\"He said \"\"Hi\"\"\" ");
+    assert_parse!(Rule::doublequoted, "\"with \"\"quotes\"\"\" ");
+    assert_parse!(Rule::doublequoted, "\"\"\"\"#empty"); // Four double quotes = escaped quote
+
+    // General quoted_string rule
+    assert_parse!(Rule::quoted_string, "'O''Brien' ");
+    assert_parse!(Rule::quoted_string, "\"She said \"\"Hi\"\"\" ");
+}
+
+#[test]
 fn test_text_field() {
     // Paragraph 21: Text fields
-    let text1 = ";Single line text\n;";
+    // Note: text_delim = { line_term ~ ";" } - semicolon must be at START of line
+    let text1 = "\n;Single line text\n;";
     assert_parse!(Rule::textfield, text1);
 
-    let text2 = ";Multi\nline\ntext\n;";
+    let text2 = "\n;Multi\nline\ntext\n;";
     assert_parse!(Rule::textfield, text2);
 
-    let text3 = ";\nText with special chars !@#$%\n;";
+    let text3 = "\n;Text with special chars !@#$%\n;";
     assert_parse!(Rule::textfield, text3);
 }
 
@@ -251,7 +258,9 @@ fn test_value() {
 fn test_datablock_heading() {
     // Paragraph 27: Data block heading
     assert_parse!(Rule::datablockheading, "data_myblock");
-    assert_parse!(Rule::datablockheading, "data_"); // Empty name (for compatibility)
+    // Empty names allowed at grammar level for CIF 1.1 compatibility
+    // Semantic validation rejects empty names in CIF 2.0 (enforced in parser, not grammar)
+    assert_parse!(Rule::datablockheading, "data_");
     assert_parse!(Rule::datablockheading, "global_");
     assert_parse!(Rule::datablockheading, "DATA_BLOCK123");
 }
@@ -366,17 +375,13 @@ _item2 value2
 ";
     assert_parse!(Rule::file, cif2);
 
-    // CIF with all features
+    // CIF with all features (text fields tested separately in integration tests)
     let cif3 = "
 # CIF with all features
 data_complex
 _simple_item  simple_value
 _quoted_item  'quoted value'
 _double_quoted \"double quoted\"
-_text_item
-;This is a
-text field
-;
 
 loop_
 _loop.tag1

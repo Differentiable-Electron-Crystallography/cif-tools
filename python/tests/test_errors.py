@@ -19,23 +19,16 @@ class TestParsingErrors:
     def test_invalid_syntax_unclosed_quote(self):
         """Test parsing CIF with unclosed quote.
 
-        Current behavior: Unclosed quotes are parsed as unquoted strings.
-        This is permissive grammar behavior - the quote character becomes
-        part of the unquoted string value.
+        Current behavior: Unclosed quotes raise a ValueError.
+        The parser is strict and rejects malformed quoted strings.
         """
         invalid_cif = """
         data_test
         _item 'unclosed
         """
-        # Grammar allows this - parses 'unclosed as unquoted string
-        doc = cif_parser.parse(invalid_cif)
-        assert len(doc) == 1
-        block = doc.first_block()
-        value = block.get_item("_item")
-        assert value is not None
-        assert value.is_text
-        # The value includes the quote character
-        assert value.text == "'unclosed"
+        # Parser rejects unclosed quotes
+        with pytest.raises(ValueError):
+            cif_parser.parse(invalid_cif)
 
     def test_invalid_syntax_incomplete_loop(self):
         """Test parsing incomplete loop raises ValueError."""
@@ -53,18 +46,17 @@ class TestParsingErrors:
     def test_invalid_syntax_loop_without_tags(self):
         """Test parsing loop without tags.
 
-        Current behavior: Loop keyword without tags fails to parse and results
-        in an empty document (content is optional in file rule).
-        The grammar is permissive - if parsing fails, it returns empty instead of error.
+        Current behavior: Loop keyword without tags raises a ValueError.
+        The parser is strict and rejects loops without proper tag declarations.
         """
         invalid_cif = """
         data_test
         loop_
         value1 value2 value3
         """
-        # Grammar allows empty document when content fails to parse
-        doc = cif_parser.parse(invalid_cif)
-        assert len(doc) == 0  # Returns empty document, not error
+        # Parser rejects loops without tags
+        with pytest.raises(ValueError):
+            cif_parser.parse(invalid_cif)
 
     def test_invalid_syntax_save_without_data(self):
         """Test parsing save frame outside data block."""

@@ -2,16 +2,25 @@
 // CIF 2.0 Grammar in Pest PEG Format
 // ================================================================================
 //
-// Based on the formal EBNF specification from:
+// Based on the formal CIF 2.0 EBNF specification from:
 // https://www.iucr.org/__data/assets/text_file/0009/112131/CIF2-ENBF.txt
+// With further refence to the CIF 1.1 specification here:
+// https://www.iucr.org/resources/cif/spec/version1.1/cifsyntax#intro
 //
-// This grammar follows CIF 2.0 EBNF as the source of truth, with notes where
-// CIF 1.1 differs. See docs/reference/cif-versions.md for details.
+// This PEG grammar uses the CIF 2.0 EBNF defined syntax wherever possible, however if the
+// CIF 2.0 grammar is different from the CIF 1.1 syntax (which is less rigorously defined) using an ENBF-esque
+// syntax defined in a series of paragraphs here: https://www.iucr.org/resources/cif/spec/version1.1/cifsyntax#intro.
+// Then the PEG grammar of this file will use the CIF 1.1 specification.
+//
+// This means the formal grammar of this parser is a non-mutually-exclusive union of the CIF2.0 and CIF1.1 grammars.
+// Where CIF2.0 grammars diverge, this parser handles them not here in the PEG but as "semantic" rules encoded in the
+// Parser. These semantic rules can be found in the parser because they are guarded by a check for the document's
+// CIF version. The bifurcation is further reflected in /tests/parser/grammar_tests and /tests/parser/semantic_tests.
 //
 // Naming conventions:
 // - CIF 2.0 EBNF uses hyphenated names (data-heading, container-code)
 // - Pest uses snake_case (data_heading, container_code)
-// - Production names match EBNF names where possible
+// - Production names match CIF 2.0 EBNF names (which differ from CIF 1.0) where possible.
 //
 // ================================================================================
 
@@ -120,25 +129,32 @@ quote_delim = { "\"" }
 // CIF 2.0 EBNF: apostrophe-delim = "'"
 apostrophe_delim = { "'" }
 
+// CIF 1.1 quote escaping: quotes only end string if followed by whitespace, comment, or EOI
+// This allows doubled quotes for escaping: 'O''Brien' and "He said ""Hi"""
+// In CIF 2.0 files, the parser will semantically validate against this pattern
+endq_double = { "\"" ~ &(ws_char | "#" | EOI) }
+endq_single = { "'" ~ &(ws_char | "#" | EOI) }
+
 // CIF 2.0 EBNF: quote-content = { char - quote-delim }
-// Any characters except the quote delimiter
-// CIF 1.1 Note: Did not allow newlines; CIF 2.0 does
-quote_content = { (!quote_delim ~ char)* }
+// Modified for CIF 1.1 compatibility: quotes that aren't followed by whitespace/comment/EOI
+// are treated as regular characters (allowing doubled-quote escaping)
+// CIF 1.1 Note: Did not allow newlines; CIF 2.0 does (we allow newlines for compatibility)
+quote_content = { (!endq_double ~ char)* }
 
 // CIF 2.0 EBNF: apostrophe-content = { char - apostrophe-delim }
-apostrophe_content = { (!apostrophe_delim ~ char)* }
+apostrophe_content = { (!endq_single ~ char)* }
 
 // CIF 2.0 EBNF: quoted-string = ( quote-delim, quote-content, quote-delim )
 //                             | ( apostrophe-delim, apostrophe-content, apostrophe-delim )
-// Single or double quoted strings
+// Single or double quoted strings with CIF 1.1 doubled-quote escaping support
 quoted_string = {
-    (quote_delim ~ quote_content ~ quote_delim) |
-    (apostrophe_delim ~ apostrophe_content ~ apostrophe_delim)
+    (quote_delim ~ quote_content ~ endq_double) |
+    (apostrophe_delim ~ apostrophe_content ~ endq_single)
 }
 
 // Backward compatibility aliases (CIF 1.1 naming)
-singlequoted = { apostrophe_delim ~ apostrophe_content ~ apostrophe_delim }
-doublequoted = { quote_delim ~ quote_content ~ quote_delim }
+singlequoted = { apostrophe_delim ~ apostrophe_content ~ endq_single }
+doublequoted = { quote_delim ~ quote_content ~ endq_double }
 
 // --- 4.2: Triple-Quoted Strings (CIF 2.0 only) ---
 
@@ -167,6 +183,11 @@ triple_quoted_string = {
 
 // CIF 2.0 EBNF: text-delim = line-term, ';'
 // Text field delimiter: newline followed by semicolon at start of line
+//
+// IMPLEMENTATION NOTE: In dataitem context, the opening text field appears as:
+//   _tag\n;content\n;
+// The first \n is consumed by wspace between tag and value, so the opening delimiter
+// is just ";" followed by content. The closing delimiter is \n; as expected.
 text_delim = { line_term ~ ";" }
 
 // CIF 2.0 EBNF: text-content = { allchars } - ( { allchars }, text-delim, { allchars } )
@@ -175,7 +196,12 @@ text_content = { (!text_delim ~ ANY)* }
 
 // CIF 2.0 EBNF: text-field = text-delim, text-content, text-delim
 // Multi-line text field bounded by semicolons at line starts
-text_field = { text_delim ~ text_content ~ text_delim }
+// Opening: ";" at start of line (line_term? handles both standalone and dataitem contexts)
+//          Content can start on same line or next line after opening semicolon
+// Closing: newline + ";" (standard text_delim)
+// Note: line_term? is optional because in dataitem context, the preceding newline is
+//       already consumed by wspace, but in standalone grammar tests, it's part of the input
+text_field = { line_term? ~ ";" ~ text_content ~ text_delim }
 
 // Backward compatibility alias (CIF 1.1 naming)
 textfield = { text_field }
@@ -250,13 +276,21 @@ list = {
 
 // --- 5.2: Tables ---
 
+// CIF 2.0 table keys use strict quote matching (no doubled-quote escaping)
+// This is necessary because table keys can be followed by ':' with no whitespace
+table_key_quoted = {
+    (quote_delim ~ (!quote_delim ~ char)* ~ quote_delim) |
+    (apostrophe_delim ~ (!apostrophe_delim ~ char)* ~ apostrophe_delim)
+}
+
 // CIF 2.0 EBNF: table-entry = ( quoted-string | triple-quoted-string ),
 //                             ':', ( nospace-value | wsdelim-string | wspace-data-value )
 // Key-value pair in table (key must be quoted, value can be any data value)
 // CIF 2.0 spec: Only inline whitespace (no newlines) allowed around colon
-// NOTE: triple_quoted_string MUST come before quoted_string to avoid matching "" instead of """
+// NOTE: triple_quoted_string MUST come before table_key_quoted to avoid matching "" instead of """
+// NOTE: table_key_quoted uses strict quote matching (not quoted_string with CIF 1.1 escaping)
 table_entry = {
-    (triple_quoted_string | quoted_string) ~
+    (triple_quoted_string | table_key_quoted) ~
     inline_wspace* ~ ":" ~ inline_wspace* ~
     data_value
 }
@@ -301,11 +335,15 @@ nonblank_ch = { '\x21'..'\x7E' }  // Keep for CIF 1.1 compat
 // Reference: CIF 2.0 EBNF structural productions
 
 // CIF 2.0 EBNF: container-code = non-blank-char, { non-blank-char }
-// Name for data blocks or save frames (1+ non-blank characters)
+// Name for data blocks (1+ non-blank characters in CIF 2.0)
 //
-// CIF 1.1 Bug: Allowed empty names (datablockname = { nonblank_ch* })
-// CIF 2.0 Fix: Requires 1+ characters
-container_code = { non_blank_char+ }
+// IMPLEMENTATION: Allow 0+ characters for CIF 1.1 backward compatibility
+// Semantic validation enforces 1+ for CIF 2.0 files with magic header
+container_code = { non_blank_char* }
+
+// Save frame names (both CIF 1.1 and CIF 2.0 require 1+ characters)
+// This is defined separately from container_code to emit Rule::framename token
+framename = { non_blank_char+ }
 
 // CIF 2.0 EBNF: data-heading = data-token, container-code
 // Data block header: "data_" followed by block name
@@ -313,14 +351,14 @@ data_heading = { data_token ~ container_code }
 
 // CIF 2.0 EBNF: save-heading = save-token, container-code
 // Save frame header: "save_" followed by frame name
-save_heading = { save_token ~ container_code }
+// NOTE: Uses framename (1+ chars) instead of container_code for proper validation
+save_heading = { save_token ~ framename }
 
 // End frame marker: "save_" with no name
 endframe = { save_token }
 
 // Backward compatibility aliases (CIF 1.1 naming)
 datablockname = { container_code }
-framename = { container_code }
 datablockheading = { data_heading | global_token }
 
 // ===== PART 9: DATA ITEMS AND LOOPS =====
