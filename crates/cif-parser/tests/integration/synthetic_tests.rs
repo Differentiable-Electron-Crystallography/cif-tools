@@ -1,17 +1,9 @@
-// tests/integration_tests.rs
-// Integration tests for complete CIF file parsing
+// tests/integration/synthetic_tests.rs
+// Synthetic integration tests using inline CIF content strings
+// These test parser features without requiring real-world CIF files
 
+use crate::fixture_path;
 use cif_parser::{Document, Value};
-use std::path::PathBuf;
-
-// Helper to get test fixtures path
-fn fixture_path(name: &str) -> PathBuf {
-    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.push("tests");
-    path.push("fixtures");
-    path.push(name);
-    path
-}
 
 #[test]
 fn test_parse_simple_cif() {

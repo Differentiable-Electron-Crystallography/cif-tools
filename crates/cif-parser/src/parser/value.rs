@@ -230,6 +230,9 @@ fn parse_triple_quoted(pair: Pair<Rule>) -> Result<CifValue, CifError> {
 ///
 /// - **CIF 1.1**: Supports doubled-quote escaping (`'O''Brien'` → `O'Brien`)
 /// - **CIF 2.0**: Doubled quotes are invalid; use triple-quoted strings instead
+///
+/// Note: Quoted strings containing `?` or `.` remain as Text values, not special values.
+/// Only unquoted `?` and `.` are converted to Unknown/NotApplicable.
 fn parse_quoted_string(pair: Pair<Rule>, version: CifVersion) -> Result<CifValue, CifError> {
     let text = pair.as_str();
     let span = pair.as_span();
@@ -244,12 +247,19 @@ fn parse_quoted_string(pair: Pair<Rule>, version: CifVersion) -> Result<CifValue
         });
     }
 
-    // Try to parse as number first, fall back to text
+    // Try to parse as number (including uncertainty notation)
+    // But do NOT convert to special values - quoted '?' and '.' are text, not Unknown/NotApplicable
     if let Ok(num) = content.parse::<f64>() {
-        Ok(CifValue::Numeric(num))
-    } else {
-        Ok(CifValue::Text(content))
+        return Ok(CifValue::Numeric(num));
     }
+
+    // Try uncertainty notation
+    if let Some((value, uncertainty)) = CifValue::parse_with_uncertainty(&content) {
+        return Ok(CifValue::NumericWithUncertainty { value, uncertainty });
+    }
+
+    // Fall back to text (never convert to special values for quoted strings)
+    Ok(CifValue::Text(content))
 }
 
 /// Parse a text field (CIF 1.1 and 2.0): `;...\n;`
@@ -266,23 +276,13 @@ fn parse_text_field(pair: Pair<Rule>) -> Result<CifValue, CifError> {
 
 /// Parse an unquoted string (CIF 1.1 and 2.0)
 ///
-/// Handles special values (`?`, `.`) and numeric parsing.
+/// Handles special values (`?`, `.`), numeric parsing, and uncertainty notation.
 fn parse_unquoted(pair: Pair<Rule>) -> Result<CifValue, CifError> {
     let text = pair.as_str().trim();
 
-    // Check for special values
-    match text {
-        "?" => return Ok(CifValue::Unknown),
-        "." => return Ok(CifValue::NotApplicable),
-        _ => {}
-    }
-
-    // Try to parse as number
-    if let Ok(num) = text.parse::<f64>() {
-        Ok(CifValue::Numeric(num))
-    } else {
-        Ok(CifValue::Text(text.to_string()))
-    }
+    // Use CifValue::parse_value which handles special values, numbers,
+    // uncertainty notation, and text
+    Ok(CifValue::parse_value(text))
 }
 
 /// Helper: Extract content from a quoted string (remove quotes)

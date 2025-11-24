@@ -95,10 +95,19 @@ impl PyValue {
         matches!(self.inner, CifValue::Text(_))
     }
 
-    /// Check if this is a numeric value
+    /// Check if this is a numeric value (including values with uncertainty)
     #[getter]
     fn is_numeric(&self) -> bool {
-        matches!(self.inner, CifValue::Numeric(_))
+        matches!(
+            self.inner,
+            CifValue::Numeric(_) | CifValue::NumericWithUncertainty { .. }
+        )
+    }
+
+    /// Check if this is a numeric value with uncertainty
+    #[getter]
+    fn is_numeric_with_uncertainty(&self) -> bool {
+        matches!(self.inner, CifValue::NumericWithUncertainty { .. })
     }
 
     /// Check if this is an unknown value (?)
@@ -132,9 +141,16 @@ impl PyValue {
     }
 
     /// Get the value as a number (returns None if not numeric)
+    /// For values with uncertainty, returns just the value (use uncertainty property for the uncertainty)
     #[getter]
     fn numeric(&self) -> Option<f64> {
         self.inner.as_numeric()
+    }
+
+    /// Get the uncertainty (returns None if not a numeric value with uncertainty)
+    #[getter]
+    fn uncertainty(&self) -> Option<f64> {
+        self.inner.uncertainty()
     }
 
     /// Get the value type as a string
@@ -143,6 +159,7 @@ impl PyValue {
         match self.inner {
             CifValue::Text(_) => "text".to_string(),
             CifValue::Numeric(_) => "numeric".to_string(),
+            CifValue::NumericWithUncertainty { .. } => "numeric_with_uncertainty".to_string(),
             CifValue::Unknown => "unknown".to_string(),
             CifValue::NotApplicable => "not_applicable".to_string(),
             CifValue::List(_) => "list".to_string(),
@@ -151,10 +168,14 @@ impl PyValue {
     }
 
     /// Convert to Python native type
+    /// For NumericWithUncertainty, returns just the numeric value (use uncertainty property for the uncertainty)
     fn to_python(&self, py: Python) -> PyResult<Py<PyAny>> {
         match &self.inner {
             CifValue::Text(s) => Ok(PyString::new(py, s).into_any().unbind()),
             CifValue::Numeric(n) => Ok(n.into_pyobject(py)?.into_any().unbind()),
+            CifValue::NumericWithUncertainty { value, .. } => {
+                Ok(value.into_pyobject(py)?.into_any().unbind())
+            }
             CifValue::Unknown => Ok(py.None()),
             CifValue::NotApplicable => Ok(py.None()),
             CifValue::List(values) => {
@@ -181,6 +202,9 @@ impl PyValue {
         match &self.inner {
             CifValue::Text(s) => format!("'{s}'"),
             CifValue::Numeric(n) => n.to_string(),
+            CifValue::NumericWithUncertainty { value, uncertainty } => {
+                format!("{}(±{})", value, uncertainty)
+            }
             CifValue::Unknown => "?".to_string(),
             CifValue::NotApplicable => ".".to_string(),
             CifValue::List(values) => {

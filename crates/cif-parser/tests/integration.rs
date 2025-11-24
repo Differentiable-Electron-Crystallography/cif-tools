@@ -1,0 +1,27 @@
+//! Integration tests for CIF parsing
+//!
+//! - Real-world CIF files: ccdc_paracetamol, cod_urea, crystalmaker_luag, pycifrw_xanthine
+//! - Synthetic tests: inline CIF content testing parser features
+
+use std::path::PathBuf;
+
+/// Helper to get test fixtures path
+pub fn fixture_path(name: &str) -> PathBuf {
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.push("tests");
+    path.push("integration");
+    path.push("fixtures");
+    path.push(name);
+    path
+}
+
+mod integration {
+    // Real-world CIF file tests
+    pub mod ccdc_paracetamol;
+    pub mod cod_urea;
+    pub mod crystalmaker_luag;
+    pub mod pycifrw_xanthine;
+
+    // Synthetic inline CIF tests
+    pub mod synthetic_tests;
+}
