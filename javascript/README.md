@@ -4,7 +4,7 @@ Fast CIF (Crystallographic Information File) parser for JavaScript and TypeScrip
 
 ## Features
 
-- ✅ **Full CIF 1.1 Support** - Complete syntax compliance including mmCIF/PDBx
+- ✅ **Full CIF 1.1 & 2.0 Support** - Complete syntax compliance
 - ✅ **High Performance** - Near-native speed with optimized WASM binary
 - ✅ **TypeScript Ready** - Complete type definitions included
 - ✅ **Multiple Targets** - Web browsers, Node.js, and bundlers (webpack, rollup, etc.)
