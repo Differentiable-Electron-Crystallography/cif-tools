@@ -4,7 +4,7 @@ A general-purpose CIF (Crystallographic Information File) parser library written
 
 ## Features
 
-- ✅ Full CIF 1.1 syntax support
+- ✅ Full CIF 1.1 and CIF 2.0 syntax support
 - ✅ mmCIF/PDBx compatible
 - ✅ Type-safe value access with automatic numeric parsing
 - ✅ Comprehensive input validation and error handling
@@ -118,20 +118,53 @@ Run examples with:
 cargo run --example basic_usage
 ```
 
-## Optional Features
+## Python Bindings
 
-### Python Bindings
-
-Enable Python bindings with the `python` feature:
-
-```toml
-[dependencies]
-cif-parser = { version = "0.1", features = ["python"] }
+```bash
+# Build and install
+just python-develop
 ```
 
-### WebAssembly
+```python
+import cif_parser
 
-The library can be compiled to WebAssembly for use in browsers and Node.js. See the [main project README](../../README.md#webassembly-wasm-usage) for details.
+doc = cif_parser.parse_file('structure.cif')
+block = doc.first_block()
+
+# Access items
+cell_a = block.get_item('_cell_length_a')
+if cell_a and cell_a.is_numeric:
+    print(f"Cell a: {cell_a.numeric}")
+
+# Access loops
+atom_loop = block.find_loop('_atom_site_label')
+for i in range(len(atom_loop)):
+    label = atom_loop.get_by_tag(i, '_atom_site_label')
+    print(f"Atom: {label.text}")
+```
+
+Key classes: `Document`, `Block`, `Loop`, `Value`
+
+## WebAssembly
+
+```bash
+# Build for web
+just wasm-build-web
+
+# Build for Node.js
+just wasm-build
+```
+
+```javascript
+import init, { parse } from './pkg/cif_parser.js';
+
+await init();
+const doc = parse(cifContent);
+const block = doc.get_first_block();
+console.log(block.name);
+```
+
+See `javascript/README.md` for full API reference.
 
 ## Performance
 

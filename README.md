@@ -1,1007 +1,138 @@
-# CIF Parser
+# CIF Tools
 
-A general-purpose library for parsing CIF (Crystallographic Information File) files.
+A Rust workspace providing tools for working with CIF (Crystallographic Information File) format.
 
-This repo contains the source code for each of the core rust library's bindings.
-- Rust (cargo)
-- Python (pypi)
-- Javascript & Typescript (npm)
+## Crates
+
+| Crate | Description | Status |
+|-------|-------------|--------|
+| [cif-parser](crates/cif-parser/) | General-purpose CIF parser with Python & WASM bindings | Stable |
+| [cif-validator](crates/cif-validator/) | DDLm-based CIF validation | In Development |
 
 ## Features
 
-- ✅ Full CIF 1.1 and CIF 2.0 syntax support
-- ✅ Type-safe value access with automatic numeric parsing
-- ✅ Comprehensive input validation and error handling
-
-- 🐍 **Python bindings** - Native Python package with full type hints
-- 🌐 **WebAssembly support** - Use in browsers and Node.js with full TypeScript definitions
-- 🚀 **High performance** - Near-native speed with optimized binaries
-- 📦 **Multiple targets** - Rust crate, Python package, Web, Node.js, and bundler builds
+- Full CIF 1.1 and CIF 2.0 syntax support
+- Type-safe value access with automatic numeric parsing
+- Python bindings via PyO3
+- WebAssembly support for browsers and Node.js
+- DDLm dictionary-based validation (coming soon)
 
 ## Quick Start
 
-> **Note**: Examples require building the bindings first. See [Building from Source](#building-from-source) section below.
+### Using cif-parser (Rust)
 
-### Rust
+```toml
+[dependencies]
+cif-parser = "0.1"
+```
 
 ```rust
-use cif_parser::{Document, Value};
+use cif_parser::Document;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Parse a CIF string
-    let cif_content = r#"
-        data_example
-        _cell.length_a   10.000
-        _cell.length_b   10.000
+let doc = Document::parse(r#"
+    data_example
+    _cell.length_a 10.000
+"#)?;
 
-        loop_
-        _atom_site.label
-        _atom_site.x
-        _atom_site.y
-        _atom_site.z
-        C1  0.123  0.456  0.789
-        N1  0.234  0.567  0.890
-    "#;
-
-    let doc = Document::parse(cif_content)?;
-    let block = doc.first_block().unwrap();
-
-    // Access single values
-    if let Some(cell_a) = block.get_item("_cell.length_a") {
-        println!("Cell a: {:?}", cell_a.as_numeric());
-    }
-
-    // Access loop data
-    if let Some(atom_loop) = block.find_loop("_atom_site.label") {
-        for i in 0..atom_loop.len() {
-            let label = atom_loop.get_by_tag(i, "_atom_site.label");
-            let x = atom_loop.get_by_tag(i, "_atom_site.x");
-            println!("Atom {}: {:?}", i, label);
-        }
-    }
-
-    Ok(())
+let block = doc.first_block().unwrap();
+if let Some(cell_a) = block.get_item("_cell.length_a") {
+    println!("Cell a: {:?}", cell_a.as_numeric());
 }
 ```
 
-### Python
+### Using cif-parser (Python)
 
 ```python
 import cif_parser
 
-# Parse a CIF string
-cif_content = """
-data_example
-_cell_length_a 10.000
-_cell_length_b 10.000
-
-loop_
-_atom_site_label
-_atom_site_x
-_atom_site_y
-_atom_site_z
-C1  0.123  0.456  0.789
-N1  0.234  0.567  0.890
-"""
-
-doc = cif_parser.parse(cif_content)
-block = doc.first_block()
-
-# Access single values
-cell_a = block.get_item('_cell_length_a')
-if cell_a and cell_a.is_numeric:
-    print(f"Cell a: {cell_a.numeric}")
-
-# Access loop data
-atom_loop = block.find_loop('_atom_site_label')
-if atom_loop:
-    for i in range(len(atom_loop)):
-        label = atom_loop.get_by_tag(i, '_atom_site_label')
-        x = atom_loop.get_by_tag(i, '_atom_site_x')
-        print(f"Atom {i}: {label.text} at x={x.numeric}")
-
-# Pythonic iteration and dict access
-for block in doc:
-    print(f"Block: {block.name}")
-    for key in block.item_keys:
-        value = block.get_item(key)
-        print(f"  {key}: {value}")
-```
-
-## Parsing Files
-
-### Rust
-
-```rust
-use cif_parser;
-
-// Parse from file
-let doc = cif_parser::parse_file("structure.cif")?;
-
-// Or using the Document type
-let doc = cif_parser::Document::from_file("structure.cif")?;
-```
-
-### Python
-
-```python
-import cif_parser
-
-# Parse from file
 doc = cif_parser.parse_file('structure.cif')
-
-# Or using the Document class
-doc = cif_parser.Document.from_file('structure.cif')
+block = doc.first_block()
+print(f"Cell a: {block.get_item('_cell_length_a').numeric}")
 ```
 
-## Working with Values
-
-The library automatically identifies value types:
-
-### Rust
-
-```rust
-use cif_parser::Value;
-
-match value {
-    Value::Text(s) => println!("String: {}", s),
-    Value::Numeric(n) => println!("Number: {}", n),
-    Value::Unknown => println!("Unknown value '?'"),
-    Value::NotApplicable => println!("Not applicable '.'"),
-}
-
-// Convenience methods
-if let Some(text) = value.as_string() {
-    // Handle as string
-}
-if let Some(num) = value.as_numeric() {
-    // Handle as number
-}
-```
-
-### Python
-
-```python
-# Type checking and access
-if value.is_text:
-    print(f"String: {value.text}")
-elif value.is_numeric:
-    print(f"Number: {value.numeric}")
-elif value.is_unknown:
-    print("Unknown value '?'")
-elif value.is_not_applicable:
-    print("Not applicable '.'")
-
-# Convert to native Python types
-native_value = value.to_python()  # str, float, or None
-
-# String representation
-print(value)  # Shows formatted value
-print(repr(value))  # Shows Value(...) representation
-```
-
-## Data Structure
-
-The parsed CIF document has the following hierarchy:
-
-```
-Document
-├── Block (data_blockname)
-│   ├── Items (key-value pairs)
-│   ├── Loops
-│   │   ├── Tags
-│   │   └── Values (rows of data)
-│   └── Frames (save frames)
-│       ├── Items
-│       └── Loops
-└── Block (another block)
-```
-
-## Examples
-
-Check out the `examples/` directory for more usage examples:
-
-- `basic_usage.rs` - Simple CIF parsing
-- `mmcif_parser.rs` - Parsing PDBx/mmCIF files
-- `advanced_features.rs` - Save frames and multiple blocks
-- `file_io.rs` - Reading from files
-
-Run examples with:
-```bash
-cargo run --example basic_usage
-```
-
-## API Documentation
-
-Generate and view the API documentation:
-
-```bash
-cargo doc --open
-```
-
-## Supported CIF Features
-
-- **Data Blocks**: `data_blockname`
-- **Global Blocks**: `global_`
-- **Save Frames**: `save_framename ... save_`
-- **Loops**: Multi-column tabular data
-- **Value Types**:
-  - Unquoted strings
-  - Single-quoted strings
-  - Double-quoted strings
-  - Multi-line text fields (`;...;`)
-  - Numeric values (auto-detected)
-  - Special values (`?` and `.`)
-- **Comments**: Lines starting with `#`
-
-## Python API Reference
-
-The Python bindings provide a Pythonic interface to the CIF parser with full type hints and modern Python conventions.
-
-### Classes
-
-#### `Document`
-Root container for CIF data with support for multiple blocks.
-
-```python
-# Static methods
-doc = cif_parser.Document.parse(content: str) -> Document
-doc = cif_parser.Document.from_file(path: str) -> Document
-
-# Properties and methods
-len(doc)                    # Number of blocks
-doc.blocks                  # List of all blocks
-doc.block_names            # List of block names
-doc.first_block()          # First block (or None)
-doc.get_block(index: int)   # Block by index
-doc.get_block_by_name(name: str)  # Block by name
-
-# Python protocols
-doc[0]                     # Access by index
-doc['block_name']          # Access by name
-for block in doc: ...      # Iterator support
-```
-
-#### `Block`
-Data block containing items, loops, and save frames.
-
-```python
-# Properties
-block.name                 # Block name
-block.item_keys           # List of item keys
-block.num_loops           # Number of loops
-block.num_frames          # Number of save frames
-block.loops               # List of all loops
-block.frames              # List of all frames
-
-# Methods
-block.get_item(key: str)           # Get item by key
-block.items()                      # Dict of all items
-block.get_loop(index: int)         # Get loop by index
-block.find_loop(tag: str)          # Find loop containing tag
-block.get_loop_tags()              # All loop tags
-block.get_frame(index: int)        # Get frame by index
-```
-
-#### `Loop`
-Tabular data structure with rows and columns.
-
-```python
-# Properties
-loop.tags                  # Column headers
-loop.num_columns          # Number of columns
-len(loop)                 # Number of rows
-
-# Methods
-loop.get(row: int, col: int)              # Value by position
-loop.get_by_tag(row: int, tag: str)       # Value by tag
-loop.get_column(tag: str)                 # Entire column
-loop.rows()                               # All rows as lists
-loop.get_row_dict(row: int)               # Row as dict
-
-# Python protocols
-for row in loop: ...       # Iterator support (planned)
-```
-
-#### `Value`
-Individual CIF value with type information.
-
-```python
-# Type checking
-value.is_text              # True if text value
-value.is_numeric           # True if numeric value
-value.is_unknown           # True if unknown (?)
-value.is_not_applicable    # True if not applicable (.)
-
-# Value access
-value.text                 # Text content (or None)
-value.numeric              # Numeric content (or None)
-value.value_type           # Type as string
-value.to_python()          # Convert to native Python type
-```
-
-### Error Handling
-
-The Python bindings convert Rust errors to appropriate Python exceptions:
-
-```python
-try:
-    doc = cif_parser.parse(invalid_content)
-except ValueError as e:
-    print(f"Parse error: {e}")
-
-try:
-    doc = cif_parser.parse_file('nonexistent.cif')
-except IOError as e:
-    print(f"File error: {e}")
-```
-
-### Type Hints and IDE Support
-
-The package includes complete type stubs (`.pyi` files) for full IDE support:
-
-```python
-from cif_parser import Document, Block, Loop, Value
-from typing import Optional, List, Dict
-
-doc: Document = cif_parser.parse(content)
-block: Optional[Block] = doc.first_block()
-if block:
-    loops: List[Loop] = block.loops
-    items: Dict[str, Value] = block.items()
-```
-
-### Performance Tips
-
-- Use `get_column()` to extract entire data columns efficiently
-- Access items by key rather than iterating when possible
-- The underlying Rust implementation provides near-native performance
-- Memory usage is optimized for typical crystallographic data sizes
-
-### Development and Building
-
-```bash
-# Install development dependencies
-just setup
-
-# Build in development mode (faster, includes debug info)
-just python-develop
-
-# Build optimized wheel for distribution
-just python-build
-
-# Test the installation
-source .venv/bin/activate && python python_example.py
-
-# Run tests
-just python-test
-
-# Type checking
-just python-typecheck
-
-# Linting and formatting
-just python-lint
-just python-fmt
-```
-
-## Project Structure
-
-```
-cif-parser/
-├── src/                          # Core Rust library
-│   ├── lib.rs                   # Main library
-│   ├── python.rs                # Python bindings (PyO3)
-│   └── wasm.rs                  # WebAssembly bindings
-├── python/                       # Python package (self-contained)
-│   ├── pyproject.toml           # Python packaging config
-│   ├── cif_parser/              # Pure Python wrapper
-│   └── tests/                   # Python tests
-└── javascript/                   # JavaScript/WASM package (self-contained)
-    ├── package.json             # NPM package config
-    ├── examples/                # Usage examples
-    └── tests/                   # JavaScript tests
-```
+See [crates/cif-parser/README.md](crates/cif-parser/README.md) for detailed usage.
 
 ## Building from Source
 
 ### Prerequisites
 
 - [Rust](https://rustup.rs/) 1.70.0 or later
-- [just](https://github.com/casey/just) - Command runner (install: `cargo install just` or `brew install just`)
-- For Python bindings: Python 3.8+ and [uv](https://docs.astral.sh/uv/) (recommended)
+- [just](https://github.com/casey/just) - Command runner
+- For Python bindings: Python 3.8+ and [uv](https://docs.astral.sh/uv/)
 - For WASM bindings: [wasm-pack](https://rustwasm.github.io/wasm-pack/)
 
 ### Build Commands
 
-**Note:** This project uses `just` as a command runner for all build tasks. See [justfile](justfile) for all available commands.
-
-**Rust library:**
 ```bash
-just rust-build
-```
+# Build all Rust crates
+cargo build
 
-**Python package:**
-```bash
-# Build and install in development mode
+# Build specific crate
+cargo build -p cif-parser
+cargo build -p cif-validator
+
+# Run tests
+cargo test
+
+# Build Python bindings (cif-parser)
 just python-develop
 
-# Or build wheels for distribution
-just python-build
-```
-
-**WebAssembly packages:**
-```bash
-# Build for web browsers
+# Build WASM bindings (cif-parser)
 just wasm-build-web
-
-# Build for Node.js
-just wasm-build
-
-# Build for bundlers (webpack, etc.)
-just wasm-build-bundler
-
-# Build all WASM targets
-just wasm-build-all
 ```
 
-**Build all targets:**
-```bash
-just build-all
+## Project Structure
+
+```
+cif-tools/
+├── crates/
+│   ├── cif-parser/           # CIF parsing library
+│   │   ├── src/              # Rust source
+│   │   ├── python/           # Python package
+│   │   └── javascript/       # WASM/JS package
+│   └── cif-validator/        # CIF validation library
+├── docs/                     # Documentation
+└── justfile                  # Build commands
 ```
 
-### Running Examples
+## Development
 
-After building the appropriate bindings:
-
-**Rust examples:**
-```bash
-cargo run --example basic_usage
-```
-
-**Python example:**
-```bash
-# After: just python-develop
-python python_example.py
-```
-
-**Node.js example:**
-```bash
-# After: just wasm-build
-node javascript/examples/node-example.js
-```
-
-**Web example:**
-```bash
-# After: just wasm-build-web
-# Serve the examples directory with any HTTP server:
-python -m http.server 8000
-# Open http://localhost:8000/javascript/examples/browser-basic.html
-```
-
-## WebAssembly (WASM) Usage
-
-This library can be compiled to WebAssembly for use in web browsers and Node.js applications.
-
-### Prerequisites
-
-First, install `wasm-pack`:
+### Installing Git Hooks
 
 ```bash
-curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+just install-hooks
 ```
 
-### Building for the Web
+### Code Quality
 
 ```bash
-# Build for web browsers
-just wasm-build-web
+# Run all checks
+just ci
 
-# Build for Node.js
-just wasm-build
+# Format all code
+just fmt
 
-# Build for bundlers (webpack, etc.)
-just wasm-build-bundler
-
-# Build all targets
-just wasm-build-all
+# Individual language checks
+just check-rust
+just check-python
+just check-js
 ```
-
-For detailed JavaScript/TypeScript usage, examples, and API reference, see [javascript/README.md](javascript/README.md).
-
-### JavaScript/TypeScript Usage
-
-After building, you can use the CIF parser in your JavaScript/TypeScript projects:
-
-#### In the Browser (ES Modules)
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>CIF Parser Demo</title>
-</head>
-<body>
-    <script type="module">
-        import init, { parse } from './javascript/pkg/cif_parser.js';
-
-        async function run() {
-            // Initialize the WASM module
-            await init();
-
-            // Parse CIF content
-            const cifContent = `
-                data_example
-                _cell_length_a 10.000
-                _cell_length_b 20.000
-
-                loop_
-                _atom_site_label
-                _atom_site_x
-                C1 0.123
-                N1 0.456
-            `;
-
-            try {
-                const doc = parse(cifContent);
-                console.log(`Parsed ${doc.get_block_count()} blocks`);
-
-                const block = doc.get_first_block();
-                if (block) {
-                    console.log(`Block name: ${block.name}`);
-
-                    // Get a data item
-                    const cellA = block.get_item('_cell_length_a');
-                    if (cellA && cellA.is_numeric()) {
-                        console.log(`Cell a: ${cellA.numeric_value}`);
-                    }
-
-                    // Access loop data
-                    const loop = block.get_loop(0);
-                    if (loop) {
-                        console.log(`Loop has ${loop.get_row_count()} rows`);
-                        for (let i = 0; i < loop.get_row_count(); i++) {
-                            const label = loop.get_value_by_tag(i, '_atom_site_label');
-                            console.log(`Atom ${i}: ${label.text_value}`);
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error('Parsing failed:', error);
-            }
-        }
-
-        run();
-    </script>
-</body>
-</html>
-```
-
-#### With Node.js
-
-```javascript
-const { parse } = require('./javascript/pkg-node/cif_parser.js');
-
-const cifContent = `
-    data_example
-    _cell_length_a 10.000
-    _author_name 'John Doe'
-`;
-
-try {
-    const doc = parse(cifContent);
-    const block = doc.get_first_block();
-
-    console.log('Block name:', block.name);
-    console.log('Items:', block.get_item_keys());
-
-    const author = block.get_item('_author_name');
-    console.log('Author:', author.text_value);
-
-} catch (error) {
-    console.error('Error:', error);
-}
-```
-
-#### With Webpack/Bundlers
-
-```typescript
-import init, { parse } from '@cif-parser/core';
-
-async function parseCif(content: string) {
-    await init();
-    const doc = parse(content);
-    return doc;
-}
-```
-
-### WASM API Reference
-
-The WebAssembly API provides JavaScript-friendly wrappers with both property getters (modern API) and method aliases (compatibility).
-
-**Module Functions:**
-- `parse(content: string): JsCifDocument` - Parse CIF content (convenience function)
-- `version(): string` - Get library version
-
-#### `JsCifDocument`
-- **Properties**: `blockCount`, `blockNames`
-- `parse(content: string): JsCifDocument` - Static: parse CIF content
-- `get_block(index: number): JsCifBlock | undefined` - Get block by index
-- `get_block_by_name(name: string): JsCifBlock | undefined` - Get block by name
-- `first_block(): JsCifBlock | undefined` - Get first block
-
-#### `JsCifBlock`
-- **Properties**: `name`, `itemKeys`, `numLoops`, `numFrames`
-- `get_item(key: string): JsCifValue | undefined` - Get data item
-- `get_loop(index: number): JsCifLoop | undefined` - Get loop by index
-- `find_loop(tag: string): JsCifLoop | undefined` - Find loop containing tag
-- `get_loop_tags(): string[]` - Get all loop tags
-- `get_frame(index: number): JsCifFrame | undefined` - Get save frame
-
-#### `JsCifLoop`
-- **Properties**: `tags`, `numRows`, `numColumns`
-- `get_value(row: number, col: number): JsCifValue | undefined` - Get value by position
-- `get_value_by_tag(row: number, tag: string): JsCifValue | undefined` - Get value by tag
-- `get_column(tag: string): JsCifValue[] | undefined` - Get entire column as array
-- `get_row_dict(row: number): object` - Get row as JavaScript object
-
-#### `JsCifValue`
-- `value_type: string` - "Text", "Numeric", "Unknown", or "NotApplicable"
-- `text_value: string | undefined` - Text content (if text value)
-- `numeric_value: number | undefined` - Numeric content (if numeric value)
-- `is_text(): boolean`, `is_numeric(): boolean`, etc. - Type checks
-
-### Key WASM Features
-
-- ✅ **Full API Coverage** - All Rust functionality available in JavaScript
-- ✅ **TypeScript Support** - Complete type definitions included
-- ✅ **Multiple Targets** - Web browsers, Node.js, and bundlers
-- ✅ **Error Handling** - JavaScript-friendly error messages
-- ✅ **Performance** - Near-native parsing speed (~225KB WASM binary)
-- ✅ **Memory Efficient** - Optimized for typical crystallographic data
-- ✅ **Debug Support** - Built-in console logging
-- ✅ **Zero Dependencies** - Self-contained WASM module
-
-### Generated Files
-
-After building with `wasm-pack`, you'll get:
-
-```
-javascript/pkg/                   # Web browser package
-├── cif_parser.js                # JavaScript bindings
-├── cif_parser.d.ts              # TypeScript definitions
-├── cif_parser_bg.wasm           # Compiled WebAssembly binary
-├── cif_parser_bg.wasm.d.ts      # WASM type definitions
-└── package.json                 # NPM package metadata
-
-javascript/pkg-node/             # Node.js package (CommonJS)
-javascript/pkg-bundler/          # Bundler package (webpack, etc.)
-```
-
-### Live Examples
-
-This repository includes working examples in `javascript/examples/`:
-
-- **`browser-basic.html`** - Interactive web demo with full parsing visualization
-- **`node-example.js`** - Complete Node.js usage example with detailed output
-- **`typescript-example.ts`** - TypeScript example showing full type safety
-- See [javascript/README.md](javascript/README.md) for more details
-
-### Performance Considerations
-
-- **Binary Size**: Optimized WASM binary (~225KB gzipped)
-- **Parse Speed**: Near-native performance for typical CIF files
-- **Memory Usage**: Efficient memory management optimized for crystallographic data
-- **Bulk Access**: Use `get_column()` for extracting entire data columns
-- **Debug Mode**: Console logging can be disabled for production builds
-
-### Distribution & Deployment
-
-#### Publishing to NPM
-
-The generated WASM packages can be published to NPM:
-
-```bash
-# Publish web version
-cd pkg && npm publish
-
-# Publish Node.js version
-cd pkg-node && npm publish --tag nodejs
-
-# Or publish both as scoped packages
-cd pkg && npm publish --access public @your-scope/cif-parser-web
-cd pkg-node && npm publish --access public @your-scope/cif-parser-node
-```
-
-#### CDN Usage
-
-For web applications, you can serve the WASM files from a CDN:
-
-```html
-<script type="module">
-    // Load from your CDN
-    import init, { JsCifDocument } from 'https://cdn.yoursite.com/cif-parser/cif_parser.js';
-    await init('https://cdn.yoursite.com/cif-parser/cif_parser_bg.wasm');
-
-    const doc = JsCifDocument.parse(cifContent);
-</script>
-```
-
-#### Integration with Frameworks
-
-**React/Next.js:**
-```javascript
-import { useEffect, useState } from 'react';
-
-function CifParser() {
-    const [parser, setParser] = useState(null);
-
-    useEffect(() => {
-        import('./pkg/cif_parser.js').then(async (module) => {
-            await module.default();
-            setParser(module);
-        });
-    }, []);
-
-    const parseCif = (content) => {
-        if (parser) {
-            return parser.JsCifDocument.parse(content);
-        }
-    };
-
-    // ... rest of component
-}
-```
-
-**Vue.js:**
-```javascript
-import { ref, onMounted } from 'vue';
-
-export default {
-    setup() {
-        const parser = ref(null);
-
-        onMounted(async () => {
-            const module = await import('./pkg/cif_parser.js');
-            await module.default();
-            parser.value = module;
-        });
-
-        return { parser };
-    }
-}
-```
-
-**Angular:**
-```typescript
-import { Injectable } from '@angular/core';
-
-@Injectable({
-    providedIn: 'root'
-})
-export class CifParserService {
-    private parser: any = null;
-
-    async initialize() {
-        if (!this.parser) {
-            const module = await import('./assets/pkg/cif_parser.js');
-            await module.default();
-            this.parser = module;
-        }
-        return this.parser;
-    }
-
-    async parse(content: string) {
-        const parser = await this.initialize();
-        return parser.JsCifDocument.parse(content);
-    }
-}
-```
-
-### Troubleshooting Python
-
-#### Missing Dependencies
-
-**maturin not installed:**
-```bash
-uv tool install maturin
-# or with pip: pip install maturin
-```
-
-**PyO3 version issues:**
-The current version uses PyO3 0.21, which supports Python 3.8-3.12.
-
-### Troubleshooting WASM
-
-#### Common Build Issues
-
-**Missing `wasm-pack`:**
-```bash
-curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-```
-
-**Rust target not installed:**
-```bash
-rustup target add wasm32-unknown-unknown
-```
-
-**Build fails with dependency errors:**
-```bash
-# Clear Cargo cache and rebuild
-cargo clean
-rm Cargo.lock
-wasm-pack build --target web
-```
-
-#### Runtime Issues
-
-**WASM module fails to load:**
-- Ensure WASM file is served with correct MIME type (`application/wasm`)
-- Check browser console for detailed error messages
-- Verify the WASM file path is correct
-
-**Module initialization fails:**
-- Always call `await init()` before using any WASM functions
-- Handle initialization errors with try-catch blocks
-
-**CORS issues when loading WASM:**
-```javascript
-// Serve WASM files with proper headers
-app.use('/pkg', express.static('pkg', {
-    setHeaders: (res, path) => {
-        if (path.endsWith('.wasm')) {
-            res.setHeader('Content-Type', 'application/wasm');
-        }
-    }
-}));
-```
-
-#### Performance Optimization
-
-**Reduce bundle size:**
-- Use `--target bundler` for webpack/rollup to enable tree shaking
-- Enable wasm-opt optimization (automatically enabled in release builds)
-
-**Improve load times:**
-- Serve WASM files with gzip compression
-- Use HTTP/2 for better multiplexing
-- Consider lazy loading for non-critical parsing
-
-**Debug performance:**
-```javascript
-const start = performance.now();
-const doc = JsCifDocument.parse(cifContent);
-console.log(`Parsing took ${performance.now() - start}ms`);
-```
-
-## Performance
-
-The parser uses the Pest parsing library with a PEG grammar for efficient parsing. It performs zero-copy parsing where possible and only allocates when necessary.
-
-## Error Handling
-
-The library provides detailed error messages for:
-- Syntax errors with line/column information
-- Invalid loop structures
-- I/O errors when reading files
-- Structural validation
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit issues or pull requests.
 
-### Development Setup
-
-#### Installing Git Hooks (Required)
-
-This project uses git hooks to ensure code quality before commits. **Please install them as part of your development setup:**
-
-```bash
-# From project root
-just install-hooks
-```
-
-This will configure git to run formatting and linting checks automatically before each commit for:
-- **Rust:** formatting (cargo fmt) and linting (clippy)
-- **Python:** formatting (black), linting (ruff), and type checking (mypy)
-- **JavaScript:** formatting and linting (biome)
-
-If you need to commit without running hooks (not recommended), use:
-```bash
-git commit --no-verify
-```
-
-### Code Quality
-
-This project enforces code quality through formatters and linters for all three languages. **All checks run automatically in CI** via GitHub Actions and in local git hooks.
-
-#### Running Formatters and Linters Manually
-
-**Note:** Use `just` commands for all formatting and linting tasks.
-
-**Rust:**
-```bash
-# Format code
-just rust-fmt
-
-# Check formatting
-just rust-fmt-check
-
-# Run linter
-just rust-clippy
-
-# Run all Rust checks
-just check-rust
-```
-
-**Python:**
-```bash
-# Format code
-just python-fmt
-
-# Check formatting
-just python-fmt-check
-
-# Lint code
-just python-lint
-
-# Auto-fix linting issues
-just python-lint-fix
-
-# Type check
-just python-typecheck
-
-# Run all Python checks
-just check-python
-```
-
-**JavaScript/TypeScript:**
-```bash
-# Format code
-just js-fmt
-
-# Check formatting
-just js-fmt-check
-
-# Lint code
-just js-lint
-
-# Check and auto-fix
-just js-check
-
-# Run all JavaScript checks
-just check-js
-```
-
-**Run all checks (CI mode):**
-```bash
-just ci
-```
-
-**Format all code:**
-```bash
-just fmt
-```
-
-#### CI/CD
-
-All formatting and linting checks run automatically in GitHub Actions on every push and pull request:
-- **`lint-and-format.yml`** - Runs formatters and linters for all languages in parallel
-- **`test.yml`** - Runs builds and tests
-
-Both workflows run concurrently for fast feedback.
-
 ## License
 
 Licensed under either of
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](LICENSE-MIT))
 
 at your option.
 
 ## References
 
 - [CIF 1.1 Specification](https://www.iucr.org/resources/cif/spec/version1.1/cifsyntax)
+- [CIF 2.0 Specification](https://www.iucr.org/resources/cif/spec/CIF2)
 - [PDBx/mmCIF Dictionary](https://mmcif.wwpdb.org/)
-- [Pest Parser](https://pest.rs/)
