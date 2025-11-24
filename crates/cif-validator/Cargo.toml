@@ -1,0 +1,32 @@
+[package]
+name = "cif-validator"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "DDLm-based validation for CIF (Crystallographic Information File) format"
+documentation = "https://docs.rs/cif-validator"
+keywords = ["cif", "crystallography", "validator", "ddlm", "validation"]
+categories = ["parser-implementations", "science"]
+readme = "README.md"
+
+[dependencies]
+# Core parser dependency
+cif-parser.workspace = true
+
+# Workspace dependencies
+serde.workspace = true
+serde_json.workspace = true
+
+# Optional features
+pyo3 = { workspace = true, optional = true }
+wasm-bindgen = { workspace = true, optional = true }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+python = ["pyo3"]
+wasm = ["wasm-bindgen"]

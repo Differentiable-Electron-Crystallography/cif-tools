@@ -6,11 +6,11 @@
   "license": "MIT OR Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Differentiable-Electron-Crystallography/cif-parser.git"
+    "url": "https://github.com/Differentiable-Electron-Crystallography/cif-tools.git"
   },
-  "homepage": "https://github.com/Differentiable-Electron-Crystallography/cif-parser",
+  "homepage": "https://github.com/Differentiable-Electron-Crystallography/cif-tools",
   "bugs": {
-    "url": "https://github.com/Differentiable-Electron-Crystallography/cif-parser/issues"
+    "url": "https://github.com/Differentiable-Electron-Crystallography/cif-tools/issues"
   },
   "keywords": [
     "cif",

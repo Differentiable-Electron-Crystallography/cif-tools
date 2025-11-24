@@ -1,56 +1,42 @@
-[package]
-name = "cif-parser"
+[workspace]
+resolver = "2"
+members = [
+    "crates/cif-parser",
+    "crates/cif-validator",
+]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
 authors = ["Iain Maitland <iain@iainmaitland.com>"]
-description = "A general-purpose CIF (Crystallographic Information File) parser library"
-documentation = "https://docs.rs/cif-parser"
-repository = "https://github.com/Differentiable-Electron-Crystallography/cif-parser"
 license = "MIT OR Apache-2.0"
-keywords = ["cif", "crystallography", "parser", "mmcif", "pdbx"]
-categories = ["parser-implementations", "science"]
-readme = "README.md"
+repository = "https://github.com/Differentiable-Electron-Crystallography/cif-tools"
 
-[dependencies]
+[workspace.dependencies]
+# Parser dependencies
 pest = "2.6"
 pest_derive = "2.6"
-wasm-bindgen = "0.2"
+
+# Serialization
 serde = { version = "1.0", features = ["derive"] }
-serde-wasm-bindgen = "0.6"
 serde_json = "1.0"
+
+# WASM bindings
+wasm-bindgen = "0.2"
+serde-wasm-bindgen = "0.6"
 js-sys = "0.3"
-pyo3 = { version = "0.26", features = ["extension-module"], optional = true }
+web-sys = { version = "0.3", features = ["console"] }
 
-[dependencies.web-sys]
-version = "0.3"
-features = [
-  "console",
-]
+# Python bindings
+pyo3 = { version = "0.26", features = ["extension-module"] }
 
-[dev-dependencies]
-# Add any development-only dependencies here
+# Inter-crate dependencies (path-based)
+cif-parser = { path = "crates/cif-parser" }
 
-[[example]]
-name = "basic_usage"
-path = "examples/basic_usage.rs"
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
 
-[[example]]
-name = "mmcif_parser"
-path = "examples/mmcif_parser.rs"
-
-[[example]]
-name = "advanced_features"
-path = "examples/advanced_features.rs"
-
-[[example]]
-name = "file_io"
-path = "examples/file_io.rs"
-
-[lib]
-crate-type = ["cdylib", "rlib"]
-
-[features]
-default = []
-python = ["pyo3"]
-# You could add optional features here, like:
-# parallel = ["rayon"]  # For parallel processing of large files
+[profile.release]
+lto = true
+codegen-units = 1

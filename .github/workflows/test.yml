@@ -56,7 +56,7 @@ jobs:
 
       - name: Build documentation
         if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
-        run: cargo doc --no-deps --all-features
+        run: cargo doc --workspace --no-deps --all-features
 
   python-tests:
     name: Python Tests

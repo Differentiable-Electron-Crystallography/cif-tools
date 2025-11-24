@@ -1,5 +1,5 @@
-# justfile for cif-parser
-# A multi-language CIF parser with Rust, Python, and JavaScript bindings
+# justfile for cif-tools workspace
+# A multi-language CIF parser and validator with Rust, Python, and JavaScript bindings
 #
 # Install just: cargo install just  (or: brew install just)
 # List recipes: just --list
@@ -12,6 +12,8 @@
 # Variables
 python_dir := "python"
 js_dir := "javascript"
+parser_crate := "crates/cif-parser"
+validator_crate := "crates/cif-validator"
 
 # ============================================================================
 # Default & Help
@@ -22,32 +24,48 @@ default:
     @just --list
 
 # ============================================================================
-# Rust Recipes
+# Rust Recipes (Workspace)
 # ============================================================================
 
-# Format Rust code
+# Format Rust code (entire workspace)
 rust-fmt:
-    cargo fmt
+    cargo fmt --all
 
-# Check Rust formatting
+# Check Rust formatting (entire workspace)
 rust-fmt-check:
-    cargo fmt -- --check
+    cargo fmt --all -- --check
 
-# Lint Rust code with clippy
+# Lint Rust code with clippy (entire workspace)
 rust-clippy:
-    cargo clippy --all-features -- -D warnings
+    cargo clippy --workspace --all-features -- -D warnings
 
-# Run Rust tests
+# Run Rust tests (entire workspace)
 rust-test:
-    cargo test --quiet
+    cargo test --workspace --quiet
 
-# Build Rust library
+# Build Rust library (entire workspace)
 rust-build:
-    cargo build --release
+    cargo build --workspace --release
+
+# Build parser only
+rust-build-parser:
+    cargo build -p cif-parser --release
+
+# Build validator only
+rust-build-validator:
+    cargo build -p cif-validator --release
+
+# Test parser only
+rust-test-parser:
+    cargo test -p cif-parser --quiet
+
+# Test validator only
+rust-test-validator:
+    cargo test -p cif-validator --quiet
 
 # Check all Rust code (format, lint, test)
 check-rust: rust-fmt-check rust-clippy rust-test
-    @echo "✅ Rust checks passed"
+    @echo "✅ Rust workspace checks passed"
 
 # ============================================================================
 # Python Recipes
@@ -102,15 +120,15 @@ check-python: python-fmt-check python-lint python-typecheck python-test
 
 # Build WASM package for Node.js (required for JS tests)
 wasm-build:
-    wasm-pack build --target nodejs --out-dir javascript/pkg-node
+    wasm-pack build {{parser_crate}} --target nodejs --out-dir ../../javascript/pkg-node
 
 # Build WASM package for web
 wasm-build-web:
-    wasm-pack build --target web --out-dir javascript/pkg
+    wasm-pack build {{parser_crate}} --target web --out-dir ../../javascript/pkg
 
 # Build WASM package for bundler
 wasm-build-bundler:
-    wasm-pack build --target bundler --out-dir javascript/pkg-bundler
+    wasm-pack build {{parser_crate}} --target bundler --out-dir ../../javascript/pkg-bundler
 
 # Build all WASM targets
 wasm-build-all: wasm-build wasm-build-web wasm-build-bundler
