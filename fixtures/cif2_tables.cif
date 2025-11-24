@@ -1,0 +1,8 @@
+#\#CIF_2.0
+
+data_table_test
+
+_empty_table       {}
+_simple_table      {'a':1 'b':2}
+_coordinates       {'x':1.5 'y':2.5 'z':3.5}
+_with_unknown      {'value':42 'error':?}

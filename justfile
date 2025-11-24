@@ -156,7 +156,7 @@ js-check-ci:
 
 # Run JavaScript tests (builds WASM first)
 js-test: wasm-build
-    cd {{js_dir}} && npx mocha tests/basic.test.js --reporter min
+    cd {{js_dir}} && npx mocha tests/integration.test.js --reporter min
 
 # Check all JavaScript code (format, lint, test)
 check-js: js-check-ci js-test

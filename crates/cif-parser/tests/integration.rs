@@ -5,11 +5,11 @@
 
 use std::path::PathBuf;
 
-/// Helper to get test fixtures path
+/// Helper to get test fixtures path from project root fixtures/ directory
 pub fn fixture_path(name: &str) -> PathBuf {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.push("tests");
-    path.push("integration");
+    path.pop(); // crates/cif-parser -> crates/
+    path.pop(); // crates/ -> project root
     path.push("fixtures");
     path.push(name);
     path
@@ -24,4 +24,7 @@ mod integration {
 
     // Synthetic inline CIF tests
     pub mod synthetic_tests;
+
+    // Shared fixtures tests (designed for parity with Python/JS)
+    pub mod shared_fixtures;
 }
