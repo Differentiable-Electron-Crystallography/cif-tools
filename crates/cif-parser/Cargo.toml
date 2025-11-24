@@ -1,0 +1,54 @@
+[package]
+name = "cif-parser"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "A general-purpose CIF (Crystallographic Information File) parser library"
+documentation = "https://docs.rs/cif-parser"
+keywords = ["cif", "crystallography", "parser", "mmcif", "pdbx"]
+categories = ["parser-implementations", "science"]
+readme = "README.md"
+
+[dependencies]
+# Workspace dependencies
+pest.workspace = true
+pest_derive.workspace = true
+wasm-bindgen.workspace = true
+serde.workspace = true
+serde-wasm-bindgen.workspace = true
+serde_json.workspace = true
+js-sys.workspace = true
+web-sys.workspace = true
+
+# Optional features
+pyo3 = { workspace = true, optional = true }
+
+[dev-dependencies]
+# Add any development-only dependencies here
+
+[[example]]
+name = "basic_usage"
+path = "examples/basic_usage.rs"
+
+[[example]]
+name = "mmcif_parser"
+path = "examples/mmcif_parser.rs"
+
+[[example]]
+name = "advanced_features"
+path = "examples/advanced_features.rs"
+
+[[example]]
+name = "file_io"
+path = "examples/file_io.rs"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+python = ["pyo3"]
+# You could add optional features here, like:
+# parallel = ["rayon"]  # For parallel processing of large files

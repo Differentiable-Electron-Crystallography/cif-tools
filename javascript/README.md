@@ -418,7 +418,7 @@ at your option.
 
 ## Links
 
-- [Repository](https://github.com/Differentiable-Electron-Crystallography/cif-parser)
+- [Repository](https://github.com/Differentiable-Electron-Crystallography/cif-tools)
 - [Documentation](https://docs.rs/cif-parser)
-- [Issue Tracker](https://github.com/Differentiable-Electron-Crystallography/cif-parser/issues)
+- [Issue Tracker](https://github.com/Differentiable-Electron-Crystallography/cif-tools/issues)
 - [Python Package](https://pypi.org/project/cif-parser/)
