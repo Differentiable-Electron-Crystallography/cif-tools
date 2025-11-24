@@ -58,6 +58,15 @@ pub enum CifValue {
     Text(String),
     /// Numeric value (both integers and floats are stored as f64)
     Numeric(f64),
+    /// Numeric value with standard uncertainty (e.g., `7.470(6)` = 7.470 ± 0.006)
+    /// The uncertainty notation follows the CIF standard where the value in
+    /// parentheses represents the uncertainty in the last digits of the mantissa.
+    NumericWithUncertainty {
+        /// The numeric value
+        value: f64,
+        /// The standard uncertainty
+        uncertainty: f64,
+    },
     /// Unknown value (represented as `?` in CIF files)
     Unknown,
     /// Not applicable value (represented as `.` in CIF files)
@@ -153,14 +162,75 @@ impl CifValue {
     /// - Floats: `123.45`
     /// - Scientific notation: `1.23e-4`
     /// - Signs: `-123.45`
+    /// - Numbers with uncertainty: `7.470(6)`, `11.910400(4)`, `3.45e1(12)`
     ///
     /// If parsing fails, the string is stored as [`CifValue::Text`].
     fn parse_numeric_or_text(s: &str) -> Self {
+        // Try standard f64 parsing first
         if let Ok(num) = s.parse::<f64>() {
-            CifValue::Numeric(num)
-        } else {
-            CifValue::Text(s.to_string())
+            return CifValue::Numeric(num);
         }
+
+        // Try uncertainty notation (e.g., "7.470(6)")
+        if let Some((value, uncertainty)) = Self::parse_with_uncertainty(s) {
+            return CifValue::NumericWithUncertainty { value, uncertainty };
+        }
+
+        // Fall back to text
+        CifValue::Text(s.to_string())
+    }
+
+    /// Parse a number with standard uncertainty notation.
+    ///
+    /// CIF uses parenthesized notation for standard uncertainties where the
+    /// value in parentheses represents the uncertainty in the last digits.
+    ///
+    /// # Examples
+    /// - `7.470(6)` → value=7.470, uncertainty=0.006 (6 in the third decimal)
+    /// - `11.910400(4)` → value=11.910400, uncertainty=0.000004
+    /// - `3.45e1(12)` → value=34.5, uncertainty=0.12
+    /// - `-1.2345e-4(2)` → value=-0.00012345, uncertainty=0.000000002
+    pub fn parse_with_uncertainty(s: &str) -> Option<(f64, f64)> {
+        // Find the opening parenthesis for uncertainty
+        let paren_start = s.rfind('(')?;
+        let paren_end = s.rfind(')')?;
+
+        // Validate parentheses are at the end
+        if paren_end != s.len() - 1 || paren_start >= paren_end {
+            return None;
+        }
+
+        // Extract the numeric part and uncertainty digits
+        let num_part = &s[..paren_start];
+        let unc_digits = &s[paren_start + 1..paren_end];
+
+        // Parse the uncertainty digits as an integer
+        let unc_value: u64 = unc_digits.parse().ok()?;
+
+        // Handle scientific notation: split into mantissa and exponent
+        let (mantissa_str, exponent) = if let Some(e_pos) = num_part.to_lowercase().find('e') {
+            let exp: i32 = num_part[e_pos + 1..].parse().ok()?;
+            (&num_part[..e_pos], exp)
+        } else {
+            (num_part, 0)
+        };
+
+        // Parse the mantissa as f64
+        let value: f64 = num_part.parse().ok()?;
+
+        // Calculate the scale factor based on decimal places in the mantissa
+        let decimal_places = if let Some(dot_pos) = mantissa_str.find('.') {
+            (mantissa_str.len() - dot_pos - 1) as i32
+        } else {
+            0
+        };
+
+        // The uncertainty is in the last digits of the mantissa
+        // Scale = 10^(-decimal_places + exponent)
+        let scale = 10_f64.powi(-decimal_places + exponent);
+        let uncertainty = (unc_value as f64) * scale;
+
+        Some((value, uncertainty))
     }
 
     /// Get the value as a string reference, if it's a Text variant.
@@ -182,7 +252,11 @@ impl CifValue {
         }
     }
 
-    /// Get the value as a number, if it's a Numeric variant.
+    /// Get the value as a number, if it's a numeric variant.
+    ///
+    /// Returns `Some(value)` for both `Numeric` and `NumericWithUncertainty` variants.
+    /// For values with uncertainty, only the value is returned (use
+    /// [`as_numeric_with_uncertainty`](Self::as_numeric_with_uncertainty) to get both).
     ///
     /// # Examples
     /// ```
@@ -191,12 +265,59 @@ impl CifValue {
     /// let val = CifValue::Numeric(42.0);
     /// assert_eq!(val.as_numeric(), Some(42.0));
     ///
+    /// let val_with_unc = CifValue::NumericWithUncertainty { value: 7.470, uncertainty: 0.006 };
+    /// assert_eq!(val_with_unc.as_numeric(), Some(7.470));
+    ///
     /// let text = CifValue::Text("hello".to_string());
     /// assert_eq!(text.as_numeric(), None);
     /// ```
     pub fn as_numeric(&self) -> Option<f64> {
         match self {
             CifValue::Numeric(n) => Some(*n),
+            CifValue::NumericWithUncertainty { value, .. } => Some(*value),
+            _ => None,
+        }
+    }
+
+    /// Get the value and uncertainty as a tuple, if it's a NumericWithUncertainty variant.
+    ///
+    /// Returns `Some((value, uncertainty))` only for `NumericWithUncertainty` variants.
+    /// For plain `Numeric` values, returns `None` (use [`as_numeric`](Self::as_numeric) instead).
+    ///
+    /// # Examples
+    /// ```
+    /// use cif_parser::CifValue;
+    ///
+    /// let val = CifValue::NumericWithUncertainty { value: 7.470, uncertainty: 0.006 };
+    /// assert_eq!(val.as_numeric_with_uncertainty(), Some((7.470, 0.006)));
+    ///
+    /// let plain = CifValue::Numeric(42.0);
+    /// assert_eq!(plain.as_numeric_with_uncertainty(), None);
+    /// ```
+    pub fn as_numeric_with_uncertainty(&self) -> Option<(f64, f64)> {
+        match self {
+            CifValue::NumericWithUncertainty { value, uncertainty } => Some((*value, *uncertainty)),
+            _ => None,
+        }
+    }
+
+    /// Get the uncertainty value, if present.
+    ///
+    /// Returns `Some(uncertainty)` for `NumericWithUncertainty` variants, `None` otherwise.
+    ///
+    /// # Examples
+    /// ```
+    /// use cif_parser::CifValue;
+    ///
+    /// let val = CifValue::NumericWithUncertainty { value: 7.470, uncertainty: 0.006 };
+    /// assert_eq!(val.uncertainty(), Some(0.006));
+    ///
+    /// let plain = CifValue::Numeric(42.0);
+    /// assert_eq!(plain.uncertainty(), None);
+    /// ```
+    pub fn uncertainty(&self) -> Option<f64> {
+        match self {
+            CifValue::NumericWithUncertainty { uncertainty, .. } => Some(*uncertainty),
             _ => None,
         }
     }

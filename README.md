@@ -9,8 +9,7 @@ This repo contains the source code for each of the core rust library's bindings.
 
 ## Features
 
-- ✅ Full CIF 1.1 syntax support
-- ✅ mmCIF/PDBx compatible
+- ✅ Full CIF 1.1 and CIF 2.0 syntax support
 - ✅ Type-safe value access with automatic numeric parsing
 - ✅ Comprehensive input validation and error handling
 

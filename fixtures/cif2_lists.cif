@@ -1,0 +1,9 @@
+#\#CIF_2.0
+
+data_list_test
+
+_empty_list        []
+_single_item       [42]
+_numeric_list      [1 2 3 4 5]
+_nested_list       [[1 2] [3 4]]
+_mixed_with_unknown [1 2 ? 4]

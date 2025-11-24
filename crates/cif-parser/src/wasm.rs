@@ -65,6 +65,7 @@ pub struct JsCifValue {
     value_type: String,
     text_value: Option<String>,
     numeric_value: Option<f64>,
+    uncertainty_value: Option<f64>,
     list_value: Option<Vec<JsCifValue>>,
     table_value: Option<HashMap<String, JsCifValue>>,
 }
@@ -95,10 +96,22 @@ impl JsCifValue {
         self.value_type == "Text"
     }
 
-    /// Check if this is a numeric value
+    /// Check if this is a numeric value (including values with uncertainty)
     #[wasm_bindgen]
     pub fn is_numeric(&self) -> bool {
-        self.value_type == "Numeric"
+        self.value_type == "Numeric" || self.value_type == "NumericWithUncertainty"
+    }
+
+    /// Check if this is a numeric value with uncertainty
+    #[wasm_bindgen]
+    pub fn is_numeric_with_uncertainty(&self) -> bool {
+        self.value_type == "NumericWithUncertainty"
+    }
+
+    /// Get the uncertainty value (if this is a numeric value with uncertainty)
+    #[wasm_bindgen(getter)]
+    pub fn uncertainty_value(&self) -> Option<f64> {
+        self.uncertainty_value
     }
 
     /// Check if this is an unknown value (?)
@@ -165,6 +178,7 @@ impl From<&CifValue> for JsCifValue {
                 value_type: "Text".to_string(),
                 text_value: Some(s.clone()),
                 numeric_value: None,
+                uncertainty_value: None,
                 list_value: None,
                 table_value: None,
             },
@@ -172,6 +186,15 @@ impl From<&CifValue> for JsCifValue {
                 value_type: "Numeric".to_string(),
                 text_value: None,
                 numeric_value: Some(*n),
+                uncertainty_value: None,
+                list_value: None,
+                table_value: None,
+            },
+            CifValue::NumericWithUncertainty { value, uncertainty } => JsCifValue {
+                value_type: "NumericWithUncertainty".to_string(),
+                text_value: None,
+                numeric_value: Some(*value),
+                uncertainty_value: Some(*uncertainty),
                 list_value: None,
                 table_value: None,
             },
@@ -179,6 +202,7 @@ impl From<&CifValue> for JsCifValue {
                 value_type: "Unknown".to_string(),
                 text_value: None,
                 numeric_value: None,
+                uncertainty_value: None,
                 list_value: None,
                 table_value: None,
             },
@@ -186,6 +210,7 @@ impl From<&CifValue> for JsCifValue {
                 value_type: "NotApplicable".to_string(),
                 text_value: None,
                 numeric_value: None,
+                uncertainty_value: None,
                 list_value: None,
                 table_value: None,
             },
@@ -193,6 +218,7 @@ impl From<&CifValue> for JsCifValue {
                 value_type: "List".to_string(),
                 text_value: None,
                 numeric_value: None,
+                uncertainty_value: None,
                 list_value: Some(values.iter().map(|v| v.into()).collect()),
                 table_value: None,
             },
@@ -200,6 +226,7 @@ impl From<&CifValue> for JsCifValue {
                 value_type: "Table".to_string(),
                 text_value: None,
                 numeric_value: None,
+                uncertainty_value: None,
                 list_value: None,
                 table_value: Some(map.iter().map(|(k, v)| (k.clone(), v.into())).collect()),
             },

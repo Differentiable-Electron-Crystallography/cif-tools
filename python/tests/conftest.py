@@ -1,16 +1,14 @@
-"""Pytest configuration and fixtures for cif_parser tests."""
+"""Pytest configuration and fixtures for cif_parser integration tests."""
 
 from pathlib import Path
 
 import pytest
 
-import cif_parser
-
 
 @pytest.fixture
 def fixtures_dir():
-    """Return path to fixtures directory."""
-    return Path(__file__).parent / "fixtures"
+    """Return path to shared fixtures directory at project root."""
+    return Path(__file__).parent.parent.parent / "fixtures"
 
 
 @pytest.fixture
@@ -32,45 +30,24 @@ def complex_cif(fixtures_dir):
 
 
 @pytest.fixture
-def simple_doc(simple_cif):
-    """Return parsed Document from simple.cif."""
-    return cif_parser.parse_file(str(simple_cif))
+def xanthine_cif(fixtures_dir):
+    """Return path to pycifrw_xanthine.cif test file."""
+    return fixtures_dir / "pycifrw_xanthine.cif"
 
 
 @pytest.fixture
-def loops_doc(loops_cif):
-    """Return parsed Document from loops.cif."""
-    return cif_parser.parse_file(str(loops_cif))
+def luag_cif(fixtures_dir):
+    """Return path to crystalmaker_LuAG.cif test file."""
+    return fixtures_dir / "crystalmaker_LuAG.cif"
 
 
 @pytest.fixture
-def complex_doc(complex_cif):
-    """Return parsed Document from complex.cif."""
-    return cif_parser.parse_file(str(complex_cif))
+def cif2_lists_cif(fixtures_dir):
+    """Return path to cif2_lists.cif test file."""
+    return fixtures_dir / "cif2_lists.cif"
 
 
 @pytest.fixture
-def simple_cif_content():
-    """Return simple CIF content as string."""
-    return """
-data_test
-_cell_length_a  10.0
-_title 'Test Structure'
-_temperature ?
-_pressure .
-"""
-
-
-@pytest.fixture
-def loop_cif_content():
-    """Return CIF with loop as string."""
-    return """
-data_test
-loop_
-_atom_site_label
-_atom_site_type_symbol
-_atom_site_fract_x
-C1  C  0.123
-N1  N  0.456
-O1  O  0.789
-"""
+def cif2_tables_cif(fixtures_dir):
+    """Return path to cif2_tables.cif test file."""
+    return fixtures_dir / "cif2_tables.cif"

@@ -1,17 +1,8 @@
-// tests/integration_tests.rs
-// Integration tests for complete CIF file parsing
+// tests/integration/synthetic_tests.rs
+// Synthetic integration tests using inline CIF content strings
+// These test parser features without requiring real-world CIF files
 
 use cif_parser::{Document, Value};
-use std::path::PathBuf;
-
-// Helper to get test fixtures path
-fn fixture_path(name: &str) -> PathBuf {
-    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.push("tests");
-    path.push("fixtures");
-    path.push(name);
-    path
-}
 
 #[test]
 fn test_parse_simple_cif() {
@@ -415,44 +406,6 @@ _complex             'O'"'"'Brien'
             .unwrap(),
         "It's working"
     );
-}
-
-// Test parsing from file (requires fixture files)
-#[test]
-#[ignore] // Remove ignore when you have fixture files
-fn test_parse_from_file() {
-    let path = fixture_path("simple.cif");
-    if path.exists() {
-        let doc = Document::from_file(&path).expect("Failed to parse file");
-        assert!(!doc.blocks.is_empty());
-    }
-}
-
-// Performance test for large files
-#[test]
-#[ignore] // This is a performance test, run manually
-fn test_parse_large_file() {
-    // Create a large CIF content
-    let mut large_cif = String::from("data_large\n");
-
-    // Add many items
-    for i in 0..1000 {
-        large_cif.push_str(&format!("_item_{} value_{}\n", i, i));
-    }
-
-    // Add a large loop
-    large_cif.push_str("loop_\n_id\n_value\n");
-    for i in 0..10000 {
-        large_cif.push_str(&format!("{} val_{}\n", i, i));
-    }
-
-    let start = std::time::Instant::now();
-    let doc = Document::parse(&large_cif).expect("Failed to parse large file");
-    let duration = start.elapsed();
-
-    println!("Parsed large file in {:?}", duration);
-    assert_eq!(doc.blocks[0].items.len(), 1000);
-    assert_eq!(doc.blocks[0].loops[0].len(), 10000);
 }
 
 #[test]
