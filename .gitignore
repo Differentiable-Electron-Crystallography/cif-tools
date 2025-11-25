@@ -29,6 +29,13 @@ __pycache__/
 env/
 venv/
 
+# Python workspace artifacts (per-package)
+python/*/dist/
+python/*/.mypy_cache/
+python/*/.pytest_cache/
+python/*/.ruff_cache/
+python/*/.benchmarks/
+
 # IDE and editor files
 .vscode/
 .idea/

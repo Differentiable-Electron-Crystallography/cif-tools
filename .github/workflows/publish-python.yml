@@ -1,7 +1,17 @@
-name: Publish Python Package to PyPI
+name: Publish Python Packages to PyPI
 
 on:
   workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to publish (or "all")'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - cif-parser
+          - cif-validator
   workflow_call:
   release:
     types: [published]
@@ -14,6 +24,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        package: [cif-parser, cif-validator]
 
     steps:
       - uses: actions/checkout@v4
@@ -32,18 +43,25 @@ jobs:
       - name: Install UV
         uses: astral-sh/setup-uv@v4
 
-      - name: Build wheels
-        run: just python-build
+      - name: Sync Python workspace
+        working-directory: python
+        run: uv sync --extra dev
+
+      - name: Build wheel for ${{ matrix.package }}
+        run: just python-build ${{ matrix.package }}
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.os }}-py${{ matrix.python-version }}
-          path: python/dist/*.whl
+          name: wheels-${{ matrix.package }}-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: python/${{ matrix.package }}/dist/*.whl
 
   build-sdist:
-    name: Build source distribution
+    name: Build source distributions
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [cif-parser, cif-validator]
 
     steps:
       - uses: actions/checkout@v4
@@ -57,36 +75,71 @@ jobs:
       - name: Install UV
         uses: astral-sh/setup-uv@v4
 
-      - name: Build sdist
-        run: just python-sdist
+      - name: Sync Python workspace
+        working-directory: python
+        run: uv sync --extra dev
+
+      - name: Build sdist for ${{ matrix.package }}
+        working-directory: python/${{ matrix.package }}
+        run: uv run maturin sdist --out dist
 
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
-          name: sdist
-          path: python/dist/*.tar.gz
+          name: sdist-${{ matrix.package }}
+          path: python/${{ matrix.package }}/dist/*.tar.gz
 
-  publish:
-    name: Publish to PyPI
+  publish-cif-parser:
+    name: Publish cif-parser to PyPI
     needs: [build, build-sdist]
     runs-on: ubuntu-latest
+    if: github.event.inputs.package == 'all' || github.event.inputs.package == 'cif-parser' || github.event_name != 'workflow_dispatch'
     environment:
       name: pypi
       url: https://pypi.org/p/cif-parser
     permissions:
-      id-token: write  # Required for trusted publishing
+      id-token: write
 
     steps:
-      - name: Download all artifacts
+      - name: Download cif-parser artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: '*cif-parser*'
           path: dist
           merge-multiple: true
 
-      - name: Display structure of downloaded files
+      - name: Display downloaded files
         run: ls -la dist/
 
-      - name: Publish to PyPI
+      - name: Publish cif-parser to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          skip-existing: true
+
+  publish-cif-validator:
+    name: Publish cif-validator to PyPI
+    needs: [build, build-sdist]
+    runs-on: ubuntu-latest
+    if: github.event.inputs.package == 'all' || github.event.inputs.package == 'cif-validator' || github.event_name != 'workflow_dispatch'
+    environment:
+      name: pypi
+      url: https://pypi.org/p/cif-validator
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download cif-validator artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*cif-validator*'
+          path: dist
+          merge-multiple: true
+
+      - name: Display downloaded files
+        run: ls -la dist/
+
+      - name: Publish cif-validator to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/

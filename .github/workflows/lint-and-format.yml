@@ -39,7 +39,7 @@ jobs:
 
       - name: Install Python dependencies
         working-directory: python
-        run: uv pip install --system -e ".[dev]"
+        run: uv sync --extra dev
 
       # JavaScript setup
       - name: Set up Node.js

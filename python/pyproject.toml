@@ -1,59 +1,26 @@
-[build-system]
-requires = ["maturin>=1.0,<2.0"]
-build-backend = "maturin"
-
 [project]
-name = "cif-parser"
-description = "Fast CIF (Crystallographic Information File) parser written in Rust"
-authors = [
-    {name = "Iain Maitland", email = "iain@iainmaitland.com"}
-]
-license = {text = "MIT OR Apache-2.0"}
-readme = "README.md"
-homepage = "https://github.com/Differentiable-Electron-Crystallography/cif-tools"
-repository = "https://github.com/Differentiable-Electron-Crystallography/cif-tools"
-documentation = "https://docs.rs/cif-parser"
-keywords = ["cif", "crystallography", "parser", "mmcif", "pdbx"]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Rust",
-    "Topic :: Scientific/Engineering :: Chemistry",
-    "Topic :: Text Processing :: Markup",
-    "Typing :: Typed",
-]
+name = "cif-tools"
+version = "0.0.0"
+description = "CIF tools workspace - parser and validator"
 requires-python = ">=3.8,<3.13"
-dynamic = ["version"]
-
-[project.urls]
-Homepage = "https://github.com/Differentiable-Electron-Crystallography/cif-tools"
-Repository = "https://github.com/Differentiable-Electron-Crystallography/cif-tools"
-Documentation = "https://docs.rs/cif-parser"
-"Bug Reports" = "https://github.com/Differentiable-Electron-Crystallography/cif-tools/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=6.0", "pytest-benchmark", "mypy", "black", "ruff", "maturin>=1.0"]
 
-[tool.maturin]
-features = ["pyo3/extension-module", "python"]
-python-source = "src"
-module-name = "cif_parser._cif_parser"
-manifest-path = "../crates/cif-parser/Cargo.toml"
+[tool.uv.workspace]
+members = ["cif-parser", "cif-validator"]
+
+# Allow workspace members to reference each other
+[tool.uv.sources]
+cif-parser = { workspace = true }
+cif-validator = { workspace = true }
 
 [tool.mypy]
 python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
-exclude = ["tests/"]
+exclude = [".*/tests/"]
 
 [tool.black]
 line-length = 88
@@ -67,5 +34,5 @@ line-length = 88
 select = ["E", "F", "I", "N", "W", "UP"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["*/tests"]
 python_files = ["test_*.py", "*_test.py"]

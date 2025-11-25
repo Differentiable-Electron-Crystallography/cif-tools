@@ -8,7 +8,8 @@ import pytest
 @pytest.fixture
 def fixtures_dir():
     """Return path to shared fixtures directory at project root."""
-    return Path(__file__).parent.parent.parent / "fixtures"
+    # conftest.py -> tests/ -> cif-parser/ -> python/ -> cif-tools/ -> fixtures/
+    return Path(__file__).parent.parent.parent.parent / "fixtures"
 
 
 @pytest.fixture

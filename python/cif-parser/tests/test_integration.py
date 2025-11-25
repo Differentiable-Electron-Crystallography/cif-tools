@@ -4,9 +4,8 @@ These tests mirror the Rust integration tests in shared_fixtures.rs
 for test parity across Rust, Python, and JavaScript.
 """
 
-import pytest
-
 import cif_parser
+import pytest
 
 # =============================================================================
 # simple.cif - Basic CIF with unknown (?) and not-applicable (.) values

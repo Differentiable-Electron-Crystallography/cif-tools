@@ -41,18 +41,20 @@ jobs:
           tag_name: v${{ steps.version.outputs.version }}
           release_name: Release v${{ steps.version.outputs.version }}
           body: |
-            ## CIF Parser v${{ steps.version.outputs.version }}
+            ## CIF Tools v${{ steps.version.outputs.version }}
 
             ### Installation
 
             **Rust:**
             ```toml
             cif-parser = "${{ steps.version.outputs.version }}"
+            cif-validator = "${{ steps.version.outputs.version }}"
             ```
 
             **Python:**
             ```bash
             pip install cif-parser==${{ steps.version.outputs.version }}
+            pip install cif-validator==${{ steps.version.outputs.version }}
             ```
 
             **NPM (JavaScript/TypeScript):**

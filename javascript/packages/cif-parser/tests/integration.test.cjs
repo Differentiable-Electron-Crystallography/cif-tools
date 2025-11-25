@@ -12,7 +12,7 @@ const { parse } = require('../pkg-node/cif_parser.js');
 
 // Helper to load fixture files
 function loadFixture(name) {
-  const fixturePath = path.join(__dirname, '../../fixtures', name);
+  const fixturePath = path.join(__dirname, '../../../../fixtures', name);
   return fs.readFileSync(fixturePath, 'utf8');
 }
 

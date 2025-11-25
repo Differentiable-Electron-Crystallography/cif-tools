@@ -1,50 +1,26 @@
 {
-  "name": "@cif-parser/core",
-  "version": "0.1.0",
-  "description": "Fast CIF (Crystallographic Information File) parser compiled to WebAssembly",
-  "author": "Iain Maitland <iain@iainmaitland.com>",
-  "license": "MIT OR Apache-2.0",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Differentiable-Electron-Crystallography/cif-tools.git"
-  },
-  "homepage": "https://github.com/Differentiable-Electron-Crystallography/cif-tools",
-  "bugs": {
-    "url": "https://github.com/Differentiable-Electron-Crystallography/cif-tools/issues"
-  },
-  "keywords": [
-    "cif",
-    "crystallography",
-    "parser",
-    "mmcif",
-    "pdbx",
-    "wasm",
-    "webassembly",
-    "rust"
+  "name": "cif-tools-js",
+  "private": true,
+  "description": "CIF tools JavaScript workspace - parser and validator WASM packages",
+  "workspaces": [
+    "packages/*",
+    "demo"
   ],
   "scripts": {
-    "build": "wasm-pack build --target web --out-dir javascript/pkg",
-    "build:node": "wasm-pack build --target nodejs --out-dir javascript/pkg-node",
-    "build:bundler": "wasm-pack build --target bundler --out-dir javascript/pkg-bundler",
-    "build:all": "npm run build && npm run build:node && npm run build:bundler",
-    "test": "wasm-pack test --headless --firefox",
-    "test:node": "wasm-pack test --node",
-    "lint": "biome lint .",
+    "build:parser": "wasm-pack build ../crates/cif-parser --target web --out-dir ../../javascript/packages/cif-parser/pkg",
+    "build:parser:node": "wasm-pack build ../crates/cif-parser --target nodejs --out-dir ../../javascript/packages/cif-parser/pkg-node",
+    "build:parser:bundler": "wasm-pack build ../crates/cif-parser --target bundler --out-dir ../../javascript/packages/cif-parser/pkg-bundler",
+    "build:validator": "wasm-pack build ../crates/cif-validator --target web --out-dir ../../javascript/packages/cif-validator/pkg --features wasm",
+    "build:validator:node": "wasm-pack build ../crates/cif-validator --target nodejs --out-dir ../../javascript/packages/cif-validator/pkg-node --features wasm",
+    "build:validator:bundler": "wasm-pack build ../crates/cif-validator --target bundler --out-dir ../../javascript/packages/cif-validator/pkg-bundler --features wasm",
+    "build:all": "npm run build:parser && npm run build:parser:node && npm run build:validator && npm run build:validator:node",
+    "test": "npm test --workspaces --if-present",
+    "lint": "biome ci .",
     "format": "biome format --write .",
-    "format:check": "biome format .",
-    "check": "biome check .",
-    "check:write": "biome check --write ."
+    "check": "biome check --write .",
+    "dev": "npm run dev --workspace=demo"
   },
-  "files": [
-    "pkg/**/*",
-    "pkg-node/**/*",
-    "pkg-bundler/**/*",
-    "README.md",
-    "LICENSE-MIT",
-    "LICENSE-APACHE"
-  ],
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "@types/node": "^20.0.0"
+    "@biomejs/biome": "^1.9.4"
   }
 }

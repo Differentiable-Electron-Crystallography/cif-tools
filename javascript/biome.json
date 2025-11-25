@@ -35,7 +35,23 @@
     }
   },
   "files": {
-    "include": ["examples/**/*.js", "examples/**/*.ts", "tests/**/*.js", "tests/**/*.ts"],
-    "ignore": ["pkg/**", "node_modules/**", "target/**", "../.venv/**", "../python/.venv/**"]
+    "include": [
+      "packages/**/tests/**/*.js",
+      "packages/**/tests/**/*.ts",
+      "packages/**/src/**/*.js",
+      "packages/**/src/**/*.ts",
+      "demo/**/*.js",
+      "demo/**/*.ts"
+    ],
+    "ignore": [
+      "**/pkg/**",
+      "**/pkg-node/**",
+      "**/pkg-bundler/**",
+      "**/node_modules/**",
+      "**/dist/**",
+      "target/**",
+      "../.venv/**",
+      "../python/.venv/**"
+    ]
   }
 }
