@@ -1,0 +1,55 @@
+{
+  "name": "@cif-tools/parser",
+  "version": "0.1.0",
+  "description": "Fast CIF (Crystallographic Information File) parser compiled to WebAssembly",
+  "author": "Iain Maitland <iain@iainmaitland.com>",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Differentiable-Electron-Crystallography/cif-tools.git",
+    "directory": "javascript/packages/cif-parser"
+  },
+  "homepage": "https://github.com/Differentiable-Electron-Crystallography/cif-tools",
+  "bugs": {
+    "url": "https://github.com/Differentiable-Electron-Crystallography/cif-tools/issues"
+  },
+  "keywords": [
+    "cif",
+    "crystallography",
+    "parser",
+    "mmcif",
+    "pdbx",
+    "wasm",
+    "webassembly",
+    "rust"
+  ],
+  "type": "module",
+  "main": "./pkg-node/cif_parser.js",
+  "module": "./pkg/cif_parser.js",
+  "types": "./pkg/cif_parser.d.ts",
+  "exports": {
+    ".": {
+      "node": {
+        "import": "./pkg-node/cif_parser.js",
+        "require": "./pkg-node/cif_parser.js"
+      },
+      "browser": "./pkg/cif_parser.js",
+      "import": "./pkg/cif_parser.js",
+      "default": "./pkg/cif_parser.js"
+    },
+    "./node": "./pkg-node/cif_parser.js",
+    "./web": "./pkg/cif_parser.js",
+    "./bundler": "./pkg-bundler/cif_parser.js"
+  },
+  "files": [
+    "pkg/**/*",
+    "pkg-node/**/*",
+    "pkg-bundler/**/*"
+  ],
+  "scripts": {
+    "test": "mocha tests/*.test.cjs --reporter min"
+  },
+  "devDependencies": {
+    "mocha": "^10.0.0"
+  }
+}

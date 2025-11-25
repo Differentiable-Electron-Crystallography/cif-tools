@@ -11,6 +11,7 @@
 
 # Variables
 python_dir := "python"
+python_packages := "cif-parser cif-validator"
 js_dir := "javascript"
 parser_crate := "crates/cif-parser"
 validator_crate := "crates/cif-validator"
@@ -68,10 +69,38 @@ check-rust: rust-fmt-check rust-clippy rust-test
     @echo "✅ Rust workspace checks passed"
 
 # ============================================================================
-# Python Recipes
+# Python Recipes (uv workspace)
 # ============================================================================
 
-# Format Python code with black
+# Sync workspace dependencies (installs all packages in editable mode)
+python-sync:
+    cd {{python_dir}} && uv sync --extra dev
+
+# Build native extensions for a specific package
+python-develop pkg:
+    cd {{python_dir}}/{{pkg}} && uv run maturin develop
+
+# Build native extensions for all packages
+python-develop-all: python-sync
+    for pkg in {{python_packages}}; do just python-develop $pkg; done
+
+# Run tests for a specific package
+python-test pkg: (python-develop pkg)
+    cd {{python_dir}}/{{pkg}} && uv run pytest tests/ -q
+
+# Run all Python tests
+python-test-all: python-develop-all
+    cd {{python_dir}} && uv run pytest */tests/ -q
+
+# Build wheel for a specific package
+python-build pkg:
+    cd {{python_dir}}/{{pkg}} && uv run maturin build --release --out dist
+
+# Build wheels for all packages
+python-build-all:
+    for pkg in {{python_packages}}; do just python-build $pkg; done
+
+# Format all Python code (runs from workspace root)
 python-fmt:
     cd {{python_dir}} && uv run black .
 
@@ -79,7 +108,7 @@ python-fmt:
 python-fmt-check:
     cd {{python_dir}} && uv run black --check .
 
-# Lint Python code with ruff
+# Lint all Python code
 python-lint:
     cd {{python_dir}} && uv run ruff check .
 
@@ -87,48 +116,61 @@ python-lint:
 python-lint-fix:
     cd {{python_dir}} && uv run ruff check --fix .
 
-# Type check Python code with mypy
+# Type check all Python code
 python-typecheck:
     cd {{python_dir}} && uv run mypy .
 
-# Install Python package in development mode (editable install)
-python-develop:
-    cd {{python_dir}} && uv sync --extra dev && uv run maturin develop
-
-# Run Python tests (builds extension first)
-python-test: python-develop
-    cd {{python_dir}} && uv run pytest tests/ -q
-
-# Clean Python build artifacts and compiled extensions
+# Clean Python build artifacts
 python-clean:
-    python -c "import pathlib, sys; files = [p for pattern in ['*.so', '*.pyd', '*.dll'] for p in pathlib.Path('{{python_dir}}/src/cif_parser').glob(pattern)]; [print(f'Removing {p}') or p.unlink() for p in files] if files else print('No build artifacts to clean')"
-    @if [ -d "target/maturin" ]; then rm -rf target/maturin && echo "Removed target/maturin directory"; fi
-    @if [ -d "{{python_dir}}/dist" ]; then rm -rf {{python_dir}}/dist && echo "Removed {{python_dir}}/dist directory"; fi
-    @if [ -d "{{python_dir}}/build" ]; then rm -rf {{python_dir}}/build && echo "Removed {{python_dir}}/build directory"; fi
+    for pkg in {{python_packages}}; do \
+        find {{python_dir}}/$pkg/src -name "*.so" -delete 2>/dev/null || true; \
+        rm -rf {{python_dir}}/$pkg/dist 2>/dev/null || true; \
+    done
+    rm -rf target/maturin 2>/dev/null || true
 
-# Build Python package with maturin
-python-build: python-clean
-    cd {{python_dir}} && uv run maturin build --release
-
-# Check all Python code (format, lint, typecheck, test)
-check-python: python-fmt-check python-lint python-typecheck python-test
+# Full Python check (format, lint, typecheck, test)
+check-python: python-fmt-check python-lint python-typecheck python-test-all
     @echo "✅ Python checks passed"
 
 # ============================================================================
-# JavaScript/WASM Recipes
+# JavaScript/WASM Recipes (npm workspace)
 # ============================================================================
 
-# Build WASM package for Node.js (required for JS tests)
-wasm-build:
-    wasm-pack build {{parser_crate}} --target nodejs --out-dir ../../javascript/pkg-node
+# Build parser WASM for Node.js (required for JS tests)
+wasm-build-parser:
+    wasm-pack build {{parser_crate}} --target nodejs --out-dir ../../javascript/packages/cif-parser/pkg-node
 
-# Build WASM package for web
-wasm-build-web:
-    wasm-pack build {{parser_crate}} --target web --out-dir ../../javascript/pkg
+# Build parser WASM for web
+wasm-build-parser-web:
+    wasm-pack build {{parser_crate}} --target web --out-dir ../../javascript/packages/cif-parser/pkg
 
-# Build WASM package for bundler
-wasm-build-bundler:
-    wasm-pack build {{parser_crate}} --target bundler --out-dir ../../javascript/pkg-bundler
+# Build parser WASM for bundler
+wasm-build-parser-bundler:
+    wasm-pack build {{parser_crate}} --target bundler --out-dir ../../javascript/packages/cif-parser/pkg-bundler
+
+# Build validator WASM for Node.js
+wasm-build-validator:
+    wasm-pack build {{validator_crate}} --target nodejs --out-dir ../../javascript/packages/cif-validator/pkg-node --features wasm
+
+# Build validator WASM for web
+wasm-build-validator-web:
+    wasm-pack build {{validator_crate}} --target web --out-dir ../../javascript/packages/cif-validator/pkg --features wasm
+
+# Build validator WASM for bundler
+wasm-build-validator-bundler:
+    wasm-pack build {{validator_crate}} --target bundler --out-dir ../../javascript/packages/cif-validator/pkg-bundler --features wasm
+
+# Build all WASM for Node.js (alias for backwards compatibility)
+wasm-build: wasm-build-parser wasm-build-validator
+    @echo "✅ WASM Node.js builds complete"
+
+# Build all WASM for web
+wasm-build-web: wasm-build-parser-web wasm-build-validator-web
+    @echo "✅ WASM web builds complete"
+
+# Build all WASM for bundler
+wasm-build-bundler: wasm-build-parser-bundler wasm-build-validator-bundler
+    @echo "✅ WASM bundler builds complete"
 
 # Build all WASM targets
 wasm-build-all: wasm-build wasm-build-web wasm-build-bundler
@@ -154,9 +196,13 @@ js-check:
 js-check-ci:
     cd {{js_dir}} && npx @biomejs/biome ci .
 
-# Run JavaScript tests (builds WASM first)
-js-test: wasm-build
-    cd {{js_dir}} && npx mocha tests/integration.test.js --reporter min
+# Run JavaScript tests (builds parser WASM first)
+js-test: wasm-build-parser
+    cd {{js_dir}} && npm test --workspaces --if-present
+
+# Start Vite demo dev server
+js-dev: wasm-build-parser-web
+    cd {{js_dir}} && npm run dev
 
 # Check all JavaScript code (format, lint, test)
 check-js: js-check-ci js-test
@@ -183,15 +229,15 @@ typecheck: python-typecheck
     @echo "✅ Type checking passed"
 
 # Run all tests
-test: rust-test python-test js-test
+test: rust-test python-test-all js-test
     @echo "✅ All tests passed"
 
 # Run all CI checks (for pre-commit hook)
-ci: rust-fmt-check rust-clippy python-fmt-check python-lint python-typecheck js-check-ci rust-test python-test js-test
+ci: rust-fmt-check rust-clippy python-fmt-check python-lint python-typecheck js-check-ci rust-test python-test-all js-test
     @echo "✅ All CI checks passed"
 
 # Build all release artifacts
-build-all: rust-build python-build wasm-build-all
+build-all: rust-build python-build-all wasm-build-all
     @echo "✅ All builds complete"
 
 # ============================================================================

@@ -941,8 +941,8 @@ impl JsCifLoop {
 
 ## Related Documentation
 
-- [Python Bindings Reference](./python-bindings.md) - Comparison and Python API
-- [CIF Format Hierarchy](./cif-format-hierarchy.md) - Understanding CIF structure
-- [AST Construction](./ast-construction.md) - How the parser builds the AST
+- [Python Bindings Reference](python-bindings.md) - Comparison and Python API
+- [CIF Format Hierarchy](cif-format-hierarchy.md) - Understanding CIF structure
+- [AST Construction](ast-construction.md) - How the parser builds the AST
 - [wasm-bindgen Documentation](https://rustwasm.github.io/wasm-bindgen/) - Official docs
 - [wasm-pack Documentation](https://rustwasm.github.io/wasm-pack/) - Build tool docs

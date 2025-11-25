@@ -1,0 +1,56 @@
+{
+  "name": "@cif-tools/validator",
+  "version": "0.1.0",
+  "description": "DDLm-based validation for CIF (Crystallographic Information File) format",
+  "author": "Iain Maitland <iain@iainmaitland.com>",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Differentiable-Electron-Crystallography/cif-tools.git",
+    "directory": "javascript/packages/cif-validator"
+  },
+  "homepage": "https://github.com/Differentiable-Electron-Crystallography/cif-tools",
+  "bugs": {
+    "url": "https://github.com/Differentiable-Electron-Crystallography/cif-tools/issues"
+  },
+  "keywords": [
+    "cif",
+    "crystallography",
+    "validator",
+    "ddlm",
+    "validation",
+    "wasm",
+    "webassembly",
+    "rust"
+  ],
+  "type": "module",
+  "main": "./pkg-node/cif_validator.js",
+  "module": "./pkg/cif_validator.js",
+  "types": "./pkg/cif_validator.d.ts",
+  "exports": {
+    ".": {
+      "node": {
+        "import": "./pkg-node/cif_validator.js",
+        "require": "./pkg-node/cif_validator.js"
+      },
+      "browser": "./pkg/cif_validator.js",
+      "import": "./pkg/cif_validator.js",
+      "default": "./pkg/cif_validator.js"
+    },
+    "./node": "./pkg-node/cif_validator.js",
+    "./web": "./pkg/cif_validator.js",
+    "./bundler": "./pkg-bundler/cif_validator.js"
+  },
+  "files": [
+    "pkg/**/*",
+    "pkg-node/**/*",
+    "pkg-bundler/**/*"
+  ],
+  "peerDependencies": {
+    "@cif-tools/parser": "^0.1.0"
+  },
+  "scripts": {
+  },
+  "devDependencies": {
+  }
+}

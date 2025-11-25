@@ -8,9 +8,10 @@
 /javascript/pkg-*/
 
 # Python generated packages (maturin output)
-/dist/
-/build/
+dist/
+build/
 *.egg-info/
+*.whl
 
 # Python cache and bytecode
 __pycache__/
@@ -27,6 +28,13 @@ __pycache__/
 .venv/
 env/
 venv/
+
+# Python workspace artifacts (per-package)
+python/*/dist/
+python/*/.mypy_cache/
+python/*/.pytest_cache/
+python/*/.ruff_cache/
+python/*/.benchmarks/
 
 # IDE and editor files
 .vscode/

@@ -84,7 +84,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Run Python tests
-        run: just python-test
+        run: just python-test-all
 
   wasm-tests:
     name: WASM and JavaScript Tests
@@ -119,9 +119,9 @@ jobs:
       - name: Build WASM for Node.js
         run: just wasm-build
 
-      - name: Verify WASM loads
+      - name: Verify WASM cif-parser loads
         run: |
-          cd javascript/pkg-node
+          cd javascript/packages/cif-parser/pkg-node
           node -e "const cif = require('./cif_parser.js'); console.log('WASM module loaded successfully:', typeof cif.JsCifDocument);"
 
       - name: Run JavaScript tests

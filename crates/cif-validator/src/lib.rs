@@ -47,6 +47,9 @@
 //! - ⚠️ Constraint checking (planned)
 //! - ⚠️ dREL evaluation (planned)
 
+#[cfg(feature = "python")]
+pub mod python;
+
 use cif_parser::Document;
 
 /// Validation mode controlling strictness of validation
