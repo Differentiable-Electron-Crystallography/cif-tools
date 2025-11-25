@@ -108,7 +108,11 @@ python-clean:
 
 # Build Python package with maturin
 python-build: python-clean
-    cd {{python_dir}} && uv run maturin build --release
+    cd {{python_dir}} && uv run maturin build --release --out dist
+
+# Build Python source distribution
+python-sdist:
+    cd {{python_dir}} && uv run maturin sdist --out dist
 
 # Check all Python code (format, lint, typecheck, test)
 check-python: python-fmt-check python-lint python-typecheck python-test

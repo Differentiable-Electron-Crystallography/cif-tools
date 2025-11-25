@@ -8,9 +8,10 @@
 /javascript/pkg-*/
 
 # Python generated packages (maturin output)
-/dist/
-/build/
+dist/
+build/
 *.egg-info/
+*.whl
 
 # Python cache and bytecode
 __pycache__/

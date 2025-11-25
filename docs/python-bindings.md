@@ -1123,7 +1123,7 @@ With PyO3's recent support for free-threaded Python (no-GIL), your implementatio
 
 ## Related Documentation
 
-- [AST Construction](./ast-construction.md) - How the Rust parser builds the AST
-- [CIF Format Hierarchy](./cif-format-hierarchy.md) - Understanding CIF structure
+- [AST Construction](ast-construction.md) - How the Rust parser builds the AST
+- [CIF Format Hierarchy](cif-format-hierarchy.md) - Understanding CIF structure
 - [PyO3 User Guide](https://pyo3.rs/) - Official PyO3 documentation
 - [Maturin User Guide](https://www.maturin.rs/) - Build system documentation

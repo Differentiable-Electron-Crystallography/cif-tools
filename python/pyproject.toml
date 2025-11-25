@@ -9,7 +9,7 @@ authors = [
     {name = "Iain Maitland", email = "iain@iainmaitland.com"}
 ]
 license = {text = "MIT OR Apache-2.0"}
-readme = "../README.md"
+readme = "README.md"
 homepage = "https://github.com/Differentiable-Electron-Crystallography/cif-tools"
 repository = "https://github.com/Differentiable-Electron-Crystallography/cif-tools"
 documentation = "https://docs.rs/cif-parser"

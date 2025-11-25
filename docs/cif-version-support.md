@@ -4,7 +4,8 @@ This document describes how CIF version detection works and how to use version-s
 
 ## Overview
 
-The parser supports both **CIF 1.1** and **CIF 2.0** specifications with automatic version detection based on the magic header.
+The parser supports both **CIF 1.1** and **CIF 2.0** specifications with version detection based on the magic header.
+To cif2.0 parsing will only happen if the cif includes the magic header.
 
 ### Version Detection
 
