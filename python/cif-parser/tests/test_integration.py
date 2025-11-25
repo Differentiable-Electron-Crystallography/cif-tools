@@ -651,3 +651,242 @@ def test_span_class_exported():
     assert Span is not None
     # Span instances come from values, not constructed directly
     # But the class should be importable for type hints
+
+
+# =============================================================================
+# cif2_comprehensive.cif - Comprehensive CIF 2.0 feature tests
+# =============================================================================
+
+
+def test_cif2_comprehensive_parse(cif2_comprehensive_cif):
+    """Test parsing cif2_comprehensive.cif."""
+    doc = cif_parser.parse_file(str(cif2_comprehensive_cif))
+
+    assert len(doc) == 1
+    assert doc.is_cif2()
+    assert doc.first_block().name == "cif2_comprehensive"
+
+
+def test_cif2_comprehensive_list_text(cif2_comprehensive_cif):
+    """Test list with text values (quoted strings)."""
+    doc = cif_parser.parse_file(str(cif2_comprehensive_cif))
+    block = doc.first_block()
+
+    value = block.get_item("_list_text")
+    assert value.is_list
+    py_value = value.to_python()
+    assert py_value == ["alpha", "beta", "gamma"]
+
+
+def test_cif2_comprehensive_list_mixed_types(cif2_comprehensive_cif):
+    """Test list with mixed types (text and numeric)."""
+    doc = cif_parser.parse_file(str(cif2_comprehensive_cif))
+    block = doc.first_block()
+
+    value = block.get_item("_list_mixed_types")
+    assert value.is_list
+    py_value = value.to_python()
+    assert py_value == ["label1", 1.5, "label2", 2.5]
+
+
+def test_cif2_comprehensive_list_deeply_nested(cif2_comprehensive_cif):
+    """Test deeply nested lists."""
+    doc = cif_parser.parse_file(str(cif2_comprehensive_cif))
+    block = doc.first_block()
+
+    value = block.get_item("_list_deeply_nested")
+    assert value.is_list
+    py_value = value.to_python()
+    assert py_value == [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]]
+
+
+def test_cif2_comprehensive_table_text(cif2_comprehensive_cif):
+    """Test table with text values."""
+    doc = cif_parser.parse_file(str(cif2_comprehensive_cif))
+    block = doc.first_block()
+
+    value = block.get_item("_table_text")
+    assert value.is_table
+    py_value = value.to_python()
+    assert py_value["name"] == "test"
+    assert py_value["type"] == "example"
+
+
+def test_cif2_comprehensive_table_nested(cif2_comprehensive_cif):
+    """Test nested tables."""
+    doc = cif_parser.parse_file(str(cif2_comprehensive_cif))
+    block = doc.first_block()
+
+    value = block.get_item("_table_nested")
+    assert value.is_table
+    py_value = value.to_python()
+    assert py_value["outer"]["inner"] == 1.0
+    assert py_value["outer"]["value"] == 2.0
+
+
+def test_cif2_comprehensive_table_with_list(cif2_comprehensive_cif):
+    """Test table containing a list."""
+    doc = cif_parser.parse_file(str(cif2_comprehensive_cif))
+    block = doc.first_block()
+
+    value = block.get_item("_table_with_list")
+    assert value.is_table
+    py_value = value.to_python()
+    assert py_value["name"] == "vector"
+    assert py_value["components"] == [1.0, 2.0, 3.0]
+
+
+def test_cif2_comprehensive_list_of_tables(cif2_comprehensive_cif):
+    """Test list containing tables."""
+    doc = cif_parser.parse_file(str(cif2_comprehensive_cif))
+    block = doc.first_block()
+
+    value = block.get_item("_list_of_tables")
+    assert value.is_list
+    py_value = value.to_python()
+    assert len(py_value) == 2
+    assert py_value[0]["x"] == 1.0
+    assert py_value[0]["y"] == 2.0
+    assert py_value[1]["x"] == 3.0
+    assert py_value[1]["y"] == 4.0
+
+
+def test_cif2_comprehensive_complex_nested(cif2_comprehensive_cif):
+    """Test complex nested structure (table with list of tables)."""
+    doc = cif_parser.parse_file(str(cif2_comprehensive_cif))
+    block = doc.first_block()
+
+    value = block.get_item("_complex_nested")
+    assert value.is_table
+    py_value = value.to_python()
+    assert py_value["count"] == 2.0
+    assert len(py_value["points"]) == 2
+    assert py_value["points"][0]["x"] == 0.0
+    assert py_value["points"][1]["y"] == 1.0
+
+
+def test_cif2_comprehensive_triple_quoted(cif2_comprehensive_cif):
+    """Test triple-quoted strings."""
+    doc = cif_parser.parse_file(str(cif2_comprehensive_cif))
+    block = doc.first_block()
+
+    # Single-quote triple-quoted
+    value = block.get_item("_triple_single_line")
+    assert value.to_python() == "This is a triple-quoted string"
+
+    # Double-quote triple-quoted
+    value = block.get_item("_triple_double_line")
+    assert value.to_python() == "This is also triple-quoted"
+
+    # With embedded quotes
+    value = block.get_item("_triple_with_quotes")
+    assert value.to_python() == "String with 'embedded' quotes"
+
+    value = block.get_item("_triple_with_double_quotes")
+    assert value.to_python() == 'String with "embedded" quotes'
+
+
+def test_cif2_comprehensive_triple_quoted_multiline(cif2_comprehensive_cif):
+    """Test multi-line triple-quoted string."""
+    doc = cif_parser.parse_file(str(cif2_comprehensive_cif))
+    block = doc.first_block()
+
+    value = block.get_item("_triple_multiline")
+    py_value = value.to_python()
+    assert "Line one" in py_value
+    assert "Line two" in py_value
+    assert "Line three" in py_value
+
+
+def test_cif2_comprehensive_list_with_triple(cif2_comprehensive_cif):
+    """Test list containing triple-quoted strings."""
+    doc = cif_parser.parse_file(str(cif2_comprehensive_cif))
+    block = doc.first_block()
+
+    value = block.get_item("_list_with_triple")
+    assert value.is_list
+    py_value = value.to_python()
+    assert py_value == ["first", "second"]
+
+
+def test_cif2_comprehensive_unicode(cif2_comprehensive_cif):
+    """Test Unicode values."""
+    doc = cif_parser.parse_file(str(cif2_comprehensive_cif))
+    block = doc.first_block()
+
+    # Greek letters
+    value = block.get_item("_unicode_greek")
+    assert value.to_python() == "αβγδεζηθ"
+
+    # Mathematical symbols
+    value = block.get_item("_unicode_math")
+    assert value.to_python() == "∑∏∫∂∇"
+
+    # Angstrom and degree symbols
+    value = block.get_item("_unicode_units")
+    assert "Å" in value.to_python()
+    assert "°" in value.to_python()
+
+    # Accented characters
+    value = block.get_item("_unicode_accents")
+    py_value = value.to_python()
+    assert "Müller" in py_value
+    assert "Böhm" in py_value
+    assert "Señor" in py_value
+
+
+def test_cif2_comprehensive_unicode_in_list(cif2_comprehensive_cif):
+    """Test Unicode values in a list."""
+    doc = cif_parser.parse_file(str(cif2_comprehensive_cif))
+    block = doc.first_block()
+
+    value = block.get_item("_list_unicode")
+    assert value.is_list
+    py_value = value.to_python()
+    assert py_value == ["α", "β", "γ"]
+
+
+def test_cif2_comprehensive_unicode_in_table(cif2_comprehensive_cif):
+    """Test Unicode in table keys."""
+    doc = cif_parser.parse_file(str(cif2_comprehensive_cif))
+    block = doc.first_block()
+
+    value = block.get_item("_table_unicode")
+    assert value.is_table
+    py_value = value.to_python()
+    assert py_value["α"] == 1.0
+    assert py_value["β"] == 2.0
+    assert py_value["γ"] == 3.0
+
+
+def test_cif2_comprehensive_loop_with_cif2_values(cif2_comprehensive_cif):
+    """Test loop containing CIF 2.0 values (lists and tables)."""
+    doc = cif_parser.parse_file(str(cif2_comprehensive_cif))
+    block = doc.first_block()
+
+    assert block.num_loops == 1
+    loop = block.find_loop("_atom_label")
+    assert len(loop) == 4
+
+    # Check first row
+    label = loop.get_by_tag(0, "_atom_label")
+    assert label.text == "C1"
+
+    coords = loop.get_by_tag(0, "_atom_coords")
+    assert coords.is_list
+    assert coords.to_python() == [0.1, 0.2, 0.3]
+
+    props = loop.get_by_tag(0, "_atom_properties")
+    assert props.is_table
+    props_dict = props.to_python()
+    assert props_dict["element"] == "C"
+    assert props_dict["mass"] == 12.0
+
+    # Check third row (nitrogen)
+    label = loop.get_by_tag(2, "_atom_label")
+    assert label.text == "N1"
+
+    props = loop.get_by_tag(2, "_atom_properties")
+    props_dict = props.to_python()
+    assert props_dict["element"] == "N"
+    assert props_dict["mass"] == 14.0

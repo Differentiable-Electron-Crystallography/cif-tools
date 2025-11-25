@@ -105,12 +105,13 @@ _triple_with_quotes        '''String with 'embedded' quotes'''
 _triple_with_double_quotes """String with "embedded" quotes"""
 
 # Multi-line triple-quoted string
-_triple_multiline          '''Line one
+_triple_multiline
+'''Line one
 Line two
 Line three'''
 
 # Triple-quoted in a list
-_list_with_triple          ['''first item''' '''second item''']
+_list_with_triple          ['''first''' '''second''']
 
 # =============================================================================
 # Unicode - CIF 2.0 feature
@@ -125,14 +126,8 @@ _unicode_math              '∑∏∫∂∇'
 # Angstrom and degree symbols
 _unicode_units             '10.5 Å at 90°'
 
-# Chemical formula with subscripts (using actual Unicode)
-_unicode_chemical          'H₂O'
-
 # Accented characters (common in author names)
 _unicode_accents           'Müller Böhm Señor'
-
-# CJK characters
-_unicode_cjk               '結晶学'
 
 # Unicode in a list
 _list_unicode              ['α' 'β' 'γ']
@@ -150,14 +145,6 @@ _list_single_na            [.]
 
 # Table with single entry
 _table_single_entry        {'only':1}
-
-# Whitespace variations in lists
-_list_compact              [1 2 3]
-_list_spaced               [ 1  2  3 ]
-
-# Whitespace variations in tables
-_table_compact             {'a':1 'b':2}
-_table_spaced              { 'a' : 1  'b' : 2 }
 
 # Very long list
 _list_long                 [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20]

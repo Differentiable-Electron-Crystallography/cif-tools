@@ -129,11 +129,14 @@ quote_delim = { "\"" }
 // CIF 2.0 EBNF: apostrophe-delim = "'"
 apostrophe_delim = { "'" }
 
-// CIF 1.1 quote escaping: quotes only end string if followed by whitespace, comment, or EOI
-// This allows doubled quotes for escaping: 'O''Brien' and "He said ""Hi"""
-// In CIF 2.0 files, the parser will semantically validate against this pattern
-endq_double = { "\"" ~ &(ws_char | "#" | EOI) }
-endq_single = { "'" ~ &(ws_char | "#" | EOI) }
+// Quote ending rules: union of CIF 1.1 and CIF 2.0 patterns
+// CIF 1.1: quotes end when followed by whitespace, comment, or EOI
+//          This allows doubled quotes for escaping: 'O''Brien' and "He said ""Hi"""
+// CIF 2.0: quotes also end before list/table delimiters ] and }
+//          This enables syntax like ['alpha' 'beta' 'gamma'] and {'key':'value'}
+// In CIF 2.0 files, the parser will semantically validate against doubled-quote escaping
+endq_double = { "\"" ~ &(ws_char | "#" | EOI | "]" | "}") }
+endq_single = { "'" ~ &(ws_char | "#" | EOI | "]" | "}") }
 
 // CIF 2.0 EBNF: quote-content = { char - quote-delim }
 // Modified for CIF 1.1 compatibility: quotes that aren't followed by whitespace/comment/EOI
