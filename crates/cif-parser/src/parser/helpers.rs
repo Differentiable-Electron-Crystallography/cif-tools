@@ -4,6 +4,7 @@
 //! with PEST's `Pair<Rule>` structures. These helpers preserve span information
 //! for error reporting while simplifying parse tree traversal.
 
+use crate::ast::Span;
 use crate::Rule;
 use pest::iterators::Pair;
 
@@ -49,4 +50,14 @@ pub(crate) fn collect_rule<'a>(
 /// Returns 1-indexed line and column numbers.
 pub(crate) fn extract_location(pair: &Pair<Rule>) -> (usize, usize) {
     pair.as_span().start_pos().line_col()
+}
+
+/// Extract a full [`Span`] from a PEST pair.
+///
+/// Returns a [`Span`] with start and end line/column positions (1-indexed).
+pub(crate) fn extract_span(pair: &Pair<Rule>) -> Span {
+    let pest_span = pair.as_span();
+    let (start_line, start_col) = pest_span.start_pos().line_col();
+    let (end_line, end_col) = pest_span.end_pos().line_col();
+    Span::new(start_line, start_col, end_line, end_col)
 }

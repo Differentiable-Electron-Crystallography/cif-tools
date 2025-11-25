@@ -142,7 +142,7 @@ pub struct CIFParser;
 // ===== Re-exports =====
 
 // AST types
-pub use ast::{CifBlock, CifDocument, CifFrame, CifLoop, CifValue, CifVersion};
+pub use ast::{CifBlock, CifDocument, CifFrame, CifLoop, CifValue, CifValueKind, CifVersion, Span};
 
 // Error types
 pub use error::CifError;
@@ -153,6 +153,7 @@ pub use CifDocument as Document;
 pub use CifFrame as Frame;
 pub use CifLoop as Loop;
 pub use CifValue as Value;
+pub use CifValueKind as ValueKind;
 pub use CifVersion as Version;
 
 // ===== Public Convenience Functions =====
@@ -274,10 +275,10 @@ _not_applicable .
         let doc = CifDocument::parse(cif_content).unwrap();
         let block = &doc.blocks[0];
 
-        assert_eq!(*block.get_item("_unknown").unwrap(), CifValue::Unknown);
-        assert_eq!(
-            *block.get_item("_not_applicable").unwrap(),
-            CifValue::NotApplicable
-        );
+        assert!(block.get_item("_unknown").unwrap().is_unknown());
+        assert!(block
+            .get_item("_not_applicable")
+            .unwrap()
+            .is_not_applicable());
     }
 }

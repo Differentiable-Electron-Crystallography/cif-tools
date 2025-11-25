@@ -1,0 +1,22 @@
+[package]
+name = "drel-parser"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Parser for dREL (dictionary Relational Expression Language) used in CIF dictionaries"
+keywords = ["cif", "crystallography", "drel", "parser", "ddlm"]
+categories = ["parsing", "science"]
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+pest = { workspace = true }
+pest_derive = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+
+[lints]
+workspace = true

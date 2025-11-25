@@ -1,9 +1,9 @@
 //! CifValue API tests
 //!
-//! Tests the public API of CifValue enum and its helper methods.
+//! Tests the public API of CifValue struct and its helper methods.
 //! These tests focus on value operations (as_list, as_table, type checking, etc.)
 
-use cif_parser::{CifDocument, CifValue};
+use cif_parser::{CifDocument, CifValue, Span};
 use std::collections::HashMap;
 
 // ========================================================================
@@ -94,59 +94,62 @@ fn test_nested_table() {
 
 #[test]
 fn test_is_cif2_only() {
-    let list = CifValue::List(vec![]);
+    let list = CifValue::list(vec![], Span::default());
     assert!(list.is_cif2_only());
 
-    let table = CifValue::Table(HashMap::new());
+    let table = CifValue::table(HashMap::new(), Span::default());
     assert!(table.is_cif2_only());
 
-    let text = CifValue::Text("hello".to_string());
+    let text = CifValue::text("hello", Span::default());
     assert!(!text.is_cif2_only());
 
-    let num = CifValue::Numeric(42.0);
+    let num = CifValue::numeric(42.0, Span::default());
     assert!(!num.is_cif2_only());
 }
 
 #[test]
 fn test_as_list_len() {
-    let list = CifValue::List(vec![
-        CifValue::Numeric(1.0),
-        CifValue::Numeric(2.0),
-        CifValue::Numeric(3.0),
-    ]);
+    let list = CifValue::list(
+        vec![
+            CifValue::numeric(1.0, Span::default()),
+            CifValue::numeric(2.0, Span::default()),
+            CifValue::numeric(3.0, Span::default()),
+        ],
+        Span::default(),
+    );
     assert_eq!(list.as_list_len(), Some(3));
 
-    let text = CifValue::Text("hello".to_string());
+    let text = CifValue::text("hello", Span::default());
     assert_eq!(text.as_list_len(), None);
 }
 
 #[test]
 fn test_as_table_get() {
     let mut map = HashMap::new();
-    map.insert("x".to_string(), CifValue::Numeric(1.0));
-    map.insert("y".to_string(), CifValue::Numeric(2.0));
-    let table = CifValue::Table(map);
+    map.insert("x".to_string(), CifValue::numeric(1.0, Span::default()));
+    map.insert("y".to_string(), CifValue::numeric(2.0, Span::default()));
+    let table = CifValue::table(map, Span::default());
 
     assert_eq!(table.as_table_get("x").unwrap().as_numeric(), Some(1.0));
     assert_eq!(table.as_table_get("y").unwrap().as_numeric(), Some(2.0));
     assert!(table.as_table_get("z").is_none());
 
-    let text = CifValue::Text("hello".to_string());
+    let text = CifValue::text("hello", Span::default());
     assert!(text.as_table_get("x").is_none());
 }
 
 #[test]
 fn test_as_table_keys() {
     let mut map = HashMap::new();
-    map.insert("a".to_string(), CifValue::Numeric(1.0));
-    map.insert("b".to_string(), CifValue::Numeric(2.0));
-    map.insert("c".to_string(), CifValue::Numeric(3.0));
-    let table = CifValue::Table(map);
+    map.insert("a".to_string(), CifValue::numeric(1.0, Span::default()));
+    map.insert("b".to_string(), CifValue::numeric(2.0, Span::default()));
+    map.insert("c".to_string(), CifValue::numeric(3.0, Span::default()));
+    let table = CifValue::table(map, Span::default());
 
     let mut keys: Vec<&str> = table.as_table_keys().unwrap().collect();
     keys.sort();
     assert_eq!(keys, vec!["a", "b", "c"]);
 
-    let text = CifValue::Text("hello".to_string());
+    let text = CifValue::text("hello", Span::default());
     assert!(text.as_table_keys().is_none());
 }

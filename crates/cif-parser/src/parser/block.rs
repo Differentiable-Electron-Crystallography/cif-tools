@@ -1,15 +1,16 @@
 //! Data block and save frame parsing logic.
 
-use crate::ast::{CifBlock, CifFrame, CifValue, CifVersion};
+use crate::ast::{CifBlock, CifFrame, CifValue, CifVersion, Span};
 use crate::builder::BlockBuilder;
 use crate::error::CifError;
-use crate::parser::helpers::{extract_location, extract_text};
+use crate::parser::helpers::{extract_location, extract_span, extract_text};
 use crate::parser::loop_parser::parse_loop;
 use crate::Rule;
 use pest::iterators::Pair;
 
 /// Parse a data block from the parse tree
 pub(crate) fn parse_datablock(pair: Pair<Rule>, version: CifVersion) -> Result<CifBlock, CifError> {
+    let block_span = extract_span(&pair);
     let mut builder = BlockBuilder::new(String::new());
 
     for inner_pair in pair.into_inner() {
@@ -48,7 +49,9 @@ pub(crate) fn parse_datablock(pair: Pair<Rule>, version: CifVersion) -> Result<C
         }
     }
 
-    Ok(builder.finish())
+    let mut block = builder.finish();
+    block.span = block_span;
+    Ok(block)
 }
 
 /// Parse a data item (tag-value pair) from the parse tree
@@ -77,7 +80,7 @@ pub(crate) fn parse_dataitem(
     let value = if let Some(vp) = value_pair {
         crate::parser::value::parse_value(vp.clone(), version)?
     } else {
-        CifValue::Unknown
+        CifValue::unknown(Span::default())
     };
 
     Ok((tag, value))
@@ -85,6 +88,7 @@ pub(crate) fn parse_dataitem(
 
 /// Parse a save frame from the parse tree
 pub(crate) fn parse_frame(pair: Pair<Rule>, version: CifVersion) -> Result<CifFrame, CifError> {
+    let frame_span = extract_span(&pair);
     let frame_location = extract_location(&pair);
     let inner: Vec<_> = pair.into_inner().collect();
 
@@ -117,7 +121,7 @@ pub(crate) fn parse_frame(pair: Pair<Rule>, version: CifVersion) -> Result<CifFr
         );
     }
 
-    let mut frame = CifFrame::new(frame_name);
+    let mut frame = CifFrame::with_span(frame_name, frame_span);
 
     // Process remaining elements
     for inner_pair in inner {

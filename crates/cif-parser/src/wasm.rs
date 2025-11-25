@@ -3,7 +3,7 @@
 //! This module provides JavaScript-compatible wrappers around the core CIF parsing
 //! functionality, using wasm-bindgen for seamless interop with JavaScript.
 
-use crate::{CifBlock, CifDocument, CifFrame, CifLoop, CifValue, CifVersion};
+use crate::{CifBlock, CifDocument, CifFrame, CifLoop, CifValue, CifValueKind, CifVersion};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
@@ -173,8 +173,8 @@ impl JsCifValue {
 
 impl From<&CifValue> for JsCifValue {
     fn from(value: &CifValue) -> Self {
-        match value {
-            CifValue::Text(s) => JsCifValue {
+        match &value.kind {
+            CifValueKind::Text(s) => JsCifValue {
                 value_type: "Text".to_string(),
                 text_value: Some(s.clone()),
                 numeric_value: None,
@@ -182,7 +182,7 @@ impl From<&CifValue> for JsCifValue {
                 list_value: None,
                 table_value: None,
             },
-            CifValue::Numeric(n) => JsCifValue {
+            CifValueKind::Numeric(n) => JsCifValue {
                 value_type: "Numeric".to_string(),
                 text_value: None,
                 numeric_value: Some(*n),
@@ -190,7 +190,7 @@ impl From<&CifValue> for JsCifValue {
                 list_value: None,
                 table_value: None,
             },
-            CifValue::NumericWithUncertainty { value, uncertainty } => JsCifValue {
+            CifValueKind::NumericWithUncertainty { value, uncertainty } => JsCifValue {
                 value_type: "NumericWithUncertainty".to_string(),
                 text_value: None,
                 numeric_value: Some(*value),
@@ -198,7 +198,7 @@ impl From<&CifValue> for JsCifValue {
                 list_value: None,
                 table_value: None,
             },
-            CifValue::Unknown => JsCifValue {
+            CifValueKind::Unknown => JsCifValue {
                 value_type: "Unknown".to_string(),
                 text_value: None,
                 numeric_value: None,
@@ -206,7 +206,7 @@ impl From<&CifValue> for JsCifValue {
                 list_value: None,
                 table_value: None,
             },
-            CifValue::NotApplicable => JsCifValue {
+            CifValueKind::NotApplicable => JsCifValue {
                 value_type: "NotApplicable".to_string(),
                 text_value: None,
                 numeric_value: None,
@@ -214,7 +214,7 @@ impl From<&CifValue> for JsCifValue {
                 list_value: None,
                 table_value: None,
             },
-            CifValue::List(values) => JsCifValue {
+            CifValueKind::List(values) => JsCifValue {
                 value_type: "List".to_string(),
                 text_value: None,
                 numeric_value: None,
@@ -222,7 +222,7 @@ impl From<&CifValue> for JsCifValue {
                 list_value: Some(values.iter().map(|v| v.into()).collect()),
                 table_value: None,
             },
-            CifValue::Table(map) => JsCifValue {
+            CifValueKind::Table(map) => JsCifValue {
                 value_type: "Table".to_string(),
                 text_value: None,
                 numeric_value: None,

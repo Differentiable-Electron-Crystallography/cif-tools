@@ -3,6 +3,7 @@
 use crate::ast::{CifDocument, CifVersion};
 use crate::error::CifError;
 use crate::parser::block::parse_datablock;
+use crate::parser::helpers::extract_span;
 use crate::{CIFParser, Rule};
 use pest::Parser;
 
@@ -62,6 +63,8 @@ pub fn parse_file(input: &str) -> Result<CifDocument, CifError> {
 
     for pair in pairs {
         if pair.as_rule() == Rule::file {
+            // Capture the document span from the file rule
+            doc.span = extract_span(&pair);
             parse_file_content(pair, &mut doc, version)?;
         }
     }

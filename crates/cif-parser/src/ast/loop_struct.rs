@@ -1,6 +1,7 @@
 //! Loop structures representing tabular data in CIF files.
 
-use super::CifValue;
+use super::{CifValue, Span};
+use serde::{Deserialize, Serialize};
 
 /// Represents a loop structure in a CIF file (tabular data).
 ///
@@ -49,12 +50,14 @@ use super::CifValue;
 /// - Number of values is divisible by number of tags
 /// - Each row has exactly the right number of values
 /// - Empty loops (tags but no values) are valid
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CifLoop {
     /// Column names/headers (CIF tags starting with `_`)
     pub tags: Vec<String>,
     /// Data organized as rows, each containing one value per tag
     pub values: Vec<Vec<CifValue>>,
+    /// Source location of this loop in the CIF file
+    pub span: Span,
 }
 
 impl Default for CifLoop {
@@ -64,11 +67,21 @@ impl Default for CifLoop {
 }
 
 impl CifLoop {
-    /// Create a new empty loop
+    /// Create a new empty loop with default span
     pub fn new() -> Self {
         CifLoop {
             tags: Vec::new(),
             values: Vec::new(),
+            span: Span::default(),
+        }
+    }
+
+    /// Create a new empty loop with the given span
+    pub fn with_span(span: Span) -> Self {
+        CifLoop {
+            tags: Vec::new(),
+            values: Vec::new(),
+            span,
         }
     }
 

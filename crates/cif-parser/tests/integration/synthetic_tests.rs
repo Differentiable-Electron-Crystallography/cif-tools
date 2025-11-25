@@ -2,7 +2,7 @@
 // Synthetic integration tests using inline CIF content strings
 // These test parser features without requiring real-world CIF files
 
-use cif_parser::{Document, Value};
+use cif_parser::Document;
 
 #[test]
 fn test_parse_simple_cif() {
@@ -175,22 +175,22 @@ _quoted_dot         '.'
     let doc = Document::parse(cif_content).expect("Failed to parse special values");
     let block = &doc.blocks[0];
 
-    assert_eq!(*block.get_item("_unknown_value").unwrap(), Value::Unknown);
+    assert!(block.get_item("_unknown_value").unwrap().is_unknown());
+    assert!(block
+        .get_item("_not_applicable")
+        .unwrap()
+        .is_not_applicable());
     assert_eq!(
-        *block.get_item("_not_applicable").unwrap(),
-        Value::NotApplicable
+        block.get_item("_normal_value").unwrap().as_numeric(),
+        Some(42.0)
     );
     assert_eq!(
-        *block.get_item("_normal_value").unwrap(),
-        Value::Numeric(42.0)
+        block.get_item("_quoted_question").unwrap().as_string(),
+        Some("?")
     );
     assert_eq!(
-        *block.get_item("_quoted_question").unwrap(),
-        Value::Text("?".to_string())
-    );
-    assert_eq!(
-        *block.get_item("_quoted_dot").unwrap(),
-        Value::Text(".".to_string())
+        block.get_item("_quoted_dot").unwrap().as_string(),
+        Some(".")
     );
 }
 
@@ -248,7 +248,7 @@ _not_applicable
     assert_eq!(row0_id.as_numeric().unwrap(), 1.0);
 
     let row0_unknown = loop_.get(0, 5).unwrap();
-    assert_eq!(*row0_unknown, Value::Unknown);
+    assert!(row0_unknown.is_unknown());
 
     // Check second row
     let row1_string = loop_.get(1, 1).unwrap();

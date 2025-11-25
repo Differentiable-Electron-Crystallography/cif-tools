@@ -1,10 +1,34 @@
-//! CIF value types with automatic type detection.
+//! CIF value types with automatic type detection and source location tracking.
 
-/// Represents a single value in a CIF file with automatic type detection.
+use super::span::Span;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+/// Represents a single value in a CIF file with source location tracking.
 ///
 /// CIF values come in many forms and require careful parsing to handle quotes,
-/// special characters, and type detection. This enum represents the parsed and
-/// typed result.
+/// special characters, and type detection. This struct wraps the value kind
+/// with span information for precise error reporting and IDE features.
+///
+/// # Examples
+///
+/// ```
+/// use cif_parser::{CifValue, CifValueKind, ast::Span};
+///
+/// // Values parsed from source include span information
+/// let val = CifValue::text("hello", Span::new(1, 5, 1, 12));
+/// assert_eq!(val.as_string(), Some("hello"));
+/// assert_eq!(val.span.start_line, 1);
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CifValue {
+    /// The kind/variant of the value
+    pub kind: CifValueKind,
+    /// Source location of this value
+    pub span: Span,
+}
+
+/// The variant/kind of a CIF value.
 ///
 /// # Value Types
 ///
@@ -33,26 +57,13 @@
 /// ```
 /// use cif_parser::CifValue;
 ///
-/// // CIF 1.1 values
-/// assert_eq!(CifValue::parse_value("123.45"), CifValue::Numeric(123.45));
-/// assert_eq!(CifValue::parse_value("'hello'"), CifValue::Text("hello".to_string()));
-/// assert_eq!(CifValue::parse_value("?"), CifValue::Unknown);
-/// assert_eq!(CifValue::parse_value("."), CifValue::NotApplicable);
+/// // CIF 1.1 values (using parse_value which uses default span)
+/// assert!(matches!(CifValue::parse_value("123.45").kind, cif_parser::CifValueKind::Numeric(n) if (n - 123.45).abs() < 1e-10));
+/// assert!(matches!(CifValue::parse_value("?").kind, cif_parser::CifValueKind::Unknown));
+/// assert!(matches!(CifValue::parse_value(".").kind, cif_parser::CifValueKind::NotApplicable));
 /// ```
-///
-/// # Text Fields
-///
-/// Text fields are multi-line values delimited by semicolons at the start of lines:
-/// ```text
-/// ;This is a text field
-/// that can span multiple lines
-/// and contain special characters !@#$%
-/// ;
-/// ```
-///
-/// These are automatically detected and the semicolon delimiters are removed.
-#[derive(Debug, Clone, PartialEq)]
-pub enum CifValue {
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum CifValueKind {
     // ===== CIF 1.1 Value Types =====
     /// String value (from quoted strings, unquoted strings, or text fields)
     Text(String),
@@ -81,65 +92,134 @@ pub enum CifValue {
     /// Table/dictionary of key-value pairs (CIF 2.0 only)
     /// Example: `{key1:value1 key2:value2}`
     /// Keys must be quoted strings, values can be any CIF value type
-    Table(std::collections::HashMap<String, CifValue>),
+    Table(HashMap<String, CifValue>),
 }
 
 impl CifValue {
-    /// Parse a CIF value from a raw string.
+    // ===== Constructors =====
+
+    /// Create a new CifValue with the given kind and span.
+    pub fn new(kind: CifValueKind, span: Span) -> Self {
+        Self { kind, span }
+    }
+
+    /// Create a text value.
+    pub fn text(s: impl Into<String>, span: Span) -> Self {
+        Self::new(CifValueKind::Text(s.into()), span)
+    }
+
+    /// Create a numeric value.
+    pub fn numeric(n: f64, span: Span) -> Self {
+        Self::new(CifValueKind::Numeric(n), span)
+    }
+
+    /// Create a numeric value with uncertainty.
+    pub fn numeric_with_uncertainty(value: f64, uncertainty: f64, span: Span) -> Self {
+        Self::new(
+            CifValueKind::NumericWithUncertainty { value, uncertainty },
+            span,
+        )
+    }
+
+    /// Create an unknown value.
+    pub fn unknown(span: Span) -> Self {
+        Self::new(CifValueKind::Unknown, span)
+    }
+
+    /// Create a not applicable value.
+    pub fn not_applicable(span: Span) -> Self {
+        Self::new(CifValueKind::NotApplicable, span)
+    }
+
+    /// Create a list value.
+    pub fn list(items: Vec<CifValue>, span: Span) -> Self {
+        Self::new(CifValueKind::List(items), span)
+    }
+
+    /// Create a table value.
+    pub fn table(entries: HashMap<String, CifValue>, span: Span) -> Self {
+        Self::new(CifValueKind::Table(entries), span)
+    }
+
+    // ===== Type checking helpers =====
+
+    /// Returns true if this is a Text value.
+    pub fn is_text(&self) -> bool {
+        matches!(self.kind, CifValueKind::Text(_))
+    }
+
+    /// Returns true if this is a Numeric or NumericWithUncertainty value.
+    pub fn is_numeric(&self) -> bool {
+        matches!(
+            self.kind,
+            CifValueKind::Numeric(_) | CifValueKind::NumericWithUncertainty { .. }
+        )
+    }
+
+    /// Returns true if this is an Unknown value.
+    pub fn is_unknown(&self) -> bool {
+        matches!(self.kind, CifValueKind::Unknown)
+    }
+
+    /// Returns true if this is a NotApplicable value.
+    pub fn is_not_applicable(&self) -> bool {
+        matches!(self.kind, CifValueKind::NotApplicable)
+    }
+
+    /// Returns true if this is a List value.
+    pub fn is_list(&self) -> bool {
+        matches!(self.kind, CifValueKind::List(_))
+    }
+
+    /// Returns true if this is a Table value.
+    pub fn is_table(&self) -> bool {
+        matches!(self.kind, CifValueKind::Table(_))
+    }
+
+    // ===== Parsing =====
+
+    /// Parse a CIF value from a raw string (uses default span).
     ///
     /// This is the main entry point for value parsing. It handles all CIF value
     /// types including quoted strings, text fields, numbers, and special values.
     ///
     /// # Examples
     /// ```
-    /// use cif_parser::CifValue;
+    /// use cif_parser::{CifValue, CifValueKind};
     ///
-    /// assert_eq!(CifValue::parse_value("42"), CifValue::Numeric(42.0));
-    /// assert_eq!(CifValue::parse_value("'text'"), CifValue::Text("text".to_string()));
-    /// assert_eq!(CifValue::parse_value("?"), CifValue::Unknown);
+    /// assert!(matches!(CifValue::parse_value("42").kind, CifValueKind::Numeric(n) if (n - 42.0).abs() < 1e-10));
+    /// assert!(matches!(CifValue::parse_value("?").kind, CifValueKind::Unknown));
     /// ```
     pub fn parse_value(s: &str) -> Self {
+        Self::parse_value_with_span(s, Span::default())
+    }
+
+    /// Parse a CIF value from a raw string with span information.
+    pub fn parse_value_with_span(s: &str, span: Span) -> Self {
         let trimmed = s.trim();
 
         // Check for special values first
-        if let Some(special) = Self::parse_special_value(trimmed) {
-            return special;
+        if let Some(kind) = Self::parse_special_value(trimmed) {
+            return Self::new(kind, span);
         }
 
         // Remove quotes and extract content
         let content = Self::extract_content(trimmed);
 
         // Try to parse as number, otherwise treat as text
-        Self::parse_numeric_or_text(content)
+        Self::new(Self::parse_numeric_or_text_kind(content), span)
     }
 
     /// Check for CIF special values (`?` for unknown, `.` for not applicable).
-    ///
-    /// These values have special meaning in CIF and must be detected before
-    /// other parsing logic.
-    fn parse_special_value(s: &str) -> Option<Self> {
+    fn parse_special_value(s: &str) -> Option<CifValueKind> {
         match s {
-            "?" => Some(CifValue::Unknown),
-            "." => Some(CifValue::NotApplicable),
+            "?" => Some(CifValueKind::Unknown),
+            "." => Some(CifValueKind::NotApplicable),
             _ => None,
         }
     }
 
     /// Extract content from quoted strings or text fields.
-    ///
-    /// Handles three cases:
-    /// 1. Single/double quoted strings: removes the quotes
-    /// 2. Text fields (start with `;`): removes semicolon delimiters
-    /// 3. Unquoted strings: returns as-is
-    ///
-    /// # Text Field Handling
-    /// Text fields in CIF are delimited by semicolons at the start of lines:
-    /// ```text
-    /// ;This is a text field
-    /// with multiple lines
-    /// ;
-    /// ```
-    /// The semicolons and surrounding whitespace are removed.
     fn extract_content(s: &str) -> &str {
         // Handle quoted strings
         if (s.starts_with('\'') && s.ends_with('\'')) || (s.starts_with('"') && s.ends_with('"')) {
@@ -155,29 +235,20 @@ impl CifValue {
         }
     }
 
-    /// Attempt to parse as a number, falling back to text.
-    ///
-    /// Uses Rust's built-in f64 parsing which handles:
-    /// - Integers: `123`
-    /// - Floats: `123.45`
-    /// - Scientific notation: `1.23e-4`
-    /// - Signs: `-123.45`
-    /// - Numbers with uncertainty: `7.470(6)`, `11.910400(4)`, `3.45e1(12)`
-    ///
-    /// If parsing fails, the string is stored as [`CifValue::Text`].
-    fn parse_numeric_or_text(s: &str) -> Self {
+    /// Attempt to parse as a number, falling back to text. Returns the kind only.
+    fn parse_numeric_or_text_kind(s: &str) -> CifValueKind {
         // Try standard f64 parsing first
         if let Ok(num) = s.parse::<f64>() {
-            return CifValue::Numeric(num);
+            return CifValueKind::Numeric(num);
         }
 
         // Try uncertainty notation (e.g., "7.470(6)")
         if let Some((value, uncertainty)) = Self::parse_with_uncertainty(s) {
-            return CifValue::NumericWithUncertainty { value, uncertainty };
+            return CifValueKind::NumericWithUncertainty { value, uncertainty };
         }
 
         // Fall back to text
-        CifValue::Text(s.to_string())
+        CifValueKind::Text(s.to_string())
     }
 
     /// Parse a number with standard uncertainty notation.
@@ -233,21 +304,23 @@ impl CifValue {
         Some((value, uncertainty))
     }
 
+    // ===== Accessor methods =====
+
     /// Get the value as a string reference, if it's a Text variant.
     ///
     /// # Examples
     /// ```
-    /// use cif_parser::CifValue;
+    /// use cif_parser::{CifValue, ast::Span};
     ///
-    /// let val = CifValue::Text("hello".to_string());
+    /// let val = CifValue::text("hello", Span::default());
     /// assert_eq!(val.as_string(), Some("hello"));
     ///
-    /// let num = CifValue::Numeric(42.0);
+    /// let num = CifValue::numeric(42.0, Span::default());
     /// assert_eq!(num.as_string(), None);
     /// ```
     pub fn as_string(&self) -> Option<&str> {
-        match self {
-            CifValue::Text(s) => Some(s),
+        match &self.kind {
+            CifValueKind::Text(s) => Some(s),
             _ => None,
         }
     }
@@ -260,21 +333,21 @@ impl CifValue {
     ///
     /// # Examples
     /// ```
-    /// use cif_parser::CifValue;
+    /// use cif_parser::{CifValue, ast::Span};
     ///
-    /// let val = CifValue::Numeric(42.0);
+    /// let val = CifValue::numeric(42.0, Span::default());
     /// assert_eq!(val.as_numeric(), Some(42.0));
     ///
-    /// let val_with_unc = CifValue::NumericWithUncertainty { value: 7.470, uncertainty: 0.006 };
+    /// let val_with_unc = CifValue::numeric_with_uncertainty(7.470, 0.006, Span::default());
     /// assert_eq!(val_with_unc.as_numeric(), Some(7.470));
     ///
-    /// let text = CifValue::Text("hello".to_string());
+    /// let text = CifValue::text("hello", Span::default());
     /// assert_eq!(text.as_numeric(), None);
     /// ```
     pub fn as_numeric(&self) -> Option<f64> {
-        match self {
-            CifValue::Numeric(n) => Some(*n),
-            CifValue::NumericWithUncertainty { value, .. } => Some(*value),
+        match &self.kind {
+            CifValueKind::Numeric(n) => Some(*n),
+            CifValueKind::NumericWithUncertainty { value, .. } => Some(*value),
             _ => None,
         }
     }
@@ -286,17 +359,19 @@ impl CifValue {
     ///
     /// # Examples
     /// ```
-    /// use cif_parser::CifValue;
+    /// use cif_parser::{CifValue, ast::Span};
     ///
-    /// let val = CifValue::NumericWithUncertainty { value: 7.470, uncertainty: 0.006 };
+    /// let val = CifValue::numeric_with_uncertainty(7.470, 0.006, Span::default());
     /// assert_eq!(val.as_numeric_with_uncertainty(), Some((7.470, 0.006)));
     ///
-    /// let plain = CifValue::Numeric(42.0);
+    /// let plain = CifValue::numeric(42.0, Span::default());
     /// assert_eq!(plain.as_numeric_with_uncertainty(), None);
     /// ```
     pub fn as_numeric_with_uncertainty(&self) -> Option<(f64, f64)> {
-        match self {
-            CifValue::NumericWithUncertainty { value, uncertainty } => Some((*value, *uncertainty)),
+        match &self.kind {
+            CifValueKind::NumericWithUncertainty { value, uncertainty } => {
+                Some((*value, *uncertainty))
+            }
             _ => None,
         }
     }
@@ -307,17 +382,17 @@ impl CifValue {
     ///
     /// # Examples
     /// ```
-    /// use cif_parser::CifValue;
+    /// use cif_parser::{CifValue, ast::Span};
     ///
-    /// let val = CifValue::NumericWithUncertainty { value: 7.470, uncertainty: 0.006 };
+    /// let val = CifValue::numeric_with_uncertainty(7.470, 0.006, Span::default());
     /// assert_eq!(val.uncertainty(), Some(0.006));
     ///
-    /// let plain = CifValue::Numeric(42.0);
+    /// let plain = CifValue::numeric(42.0, Span::default());
     /// assert_eq!(plain.uncertainty(), None);
     /// ```
     pub fn uncertainty(&self) -> Option<f64> {
-        match self {
-            CifValue::NumericWithUncertainty { uncertainty, .. } => Some(*uncertainty),
+        match &self.kind {
+            CifValueKind::NumericWithUncertainty { uncertainty, .. } => Some(*uncertainty),
             _ => None,
         }
     }
@@ -326,28 +401,28 @@ impl CifValue {
     ///
     /// # Examples
     /// ```
-    /// use cif_parser::CifValue;
+    /// use cif_parser::{CifValue, ast::Span};
     ///
-    /// let list = CifValue::List(vec![
-    ///     CifValue::Text("a".to_string()),
-    ///     CifValue::Numeric(1.0),
-    /// ]);
+    /// let list = CifValue::list(vec![
+    ///     CifValue::text("a", Span::default()),
+    ///     CifValue::numeric(1.0, Span::default()),
+    /// ], Span::default());
     /// assert_eq!(list.as_list().unwrap().len(), 2);
     ///
-    /// let text = CifValue::Text("hello".to_string());
+    /// let text = CifValue::text("hello", Span::default());
     /// assert_eq!(text.as_list(), None);
     /// ```
     pub fn as_list(&self) -> Option<&Vec<CifValue>> {
-        match self {
-            CifValue::List(list) => Some(list),
+        match &self.kind {
+            CifValueKind::List(list) => Some(list),
             _ => None,
         }
     }
 
     /// Get the value as a mutable list, if it's a List variant (CIF 2.0 only).
     pub fn as_list_mut(&mut self) -> Option<&mut Vec<CifValue>> {
-        match self {
-            CifValue::List(list) => Some(list),
+        match &mut self.kind {
+            CifValueKind::List(list) => Some(list),
             _ => None,
         }
     }
@@ -356,29 +431,29 @@ impl CifValue {
     ///
     /// # Examples
     /// ```
-    /// use cif_parser::CifValue;
+    /// use cif_parser::{CifValue, ast::Span};
     /// use std::collections::HashMap;
     ///
     /// let mut map = HashMap::new();
-    /// map.insert("key".to_string(), CifValue::Text("value".to_string()));
-    /// let table = CifValue::Table(map);
+    /// map.insert("key".to_string(), CifValue::text("value", Span::default()));
+    /// let table = CifValue::table(map, Span::default());
     ///
     /// assert_eq!(table.as_table().unwrap().len(), 1);
     ///
-    /// let text = CifValue::Text("hello".to_string());
+    /// let text = CifValue::text("hello", Span::default());
     /// assert_eq!(text.as_table(), None);
     /// ```
-    pub fn as_table(&self) -> Option<&std::collections::HashMap<String, CifValue>> {
-        match self {
-            CifValue::Table(table) => Some(table),
+    pub fn as_table(&self) -> Option<&HashMap<String, CifValue>> {
+        match &self.kind {
+            CifValueKind::Table(table) => Some(table),
             _ => None,
         }
     }
 
     /// Get the value as a mutable table, if it's a Table variant (CIF 2.0 only).
-    pub fn as_table_mut(&mut self) -> Option<&mut std::collections::HashMap<String, CifValue>> {
-        match self {
-            CifValue::Table(table) => Some(table),
+    pub fn as_table_mut(&mut self) -> Option<&mut HashMap<String, CifValue>> {
+        match &mut self.kind {
+            CifValueKind::Table(table) => Some(table),
             _ => None,
         }
     }
@@ -389,16 +464,16 @@ impl CifValue {
     ///
     /// # Examples
     /// ```
-    /// use cif_parser::CifValue;
+    /// use cif_parser::{CifValue, ast::Span};
     ///
-    /// let list = CifValue::List(vec![]);
+    /// let list = CifValue::list(vec![], Span::default());
     /// assert!(list.is_cif2_only());
     ///
-    /// let text = CifValue::Text("hello".to_string());
+    /// let text = CifValue::text("hello", Span::default());
     /// assert!(!text.is_cif2_only());
     /// ```
     pub fn is_cif2_only(&self) -> bool {
-        matches!(self, CifValue::List(_) | CifValue::Table(_))
+        matches!(self.kind, CifValueKind::List(_) | CifValueKind::Table(_))
     }
 
     /// Get the length of a list without borrowing.
@@ -407,21 +482,21 @@ impl CifValue {
     ///
     /// # Examples
     /// ```
-    /// use cif_parser::CifValue;
+    /// use cif_parser::{CifValue, ast::Span};
     ///
-    /// let list = CifValue::List(vec![
-    ///     CifValue::Numeric(1.0),
-    ///     CifValue::Numeric(2.0),
-    ///     CifValue::Numeric(3.0),
-    /// ]);
+    /// let list = CifValue::list(vec![
+    ///     CifValue::numeric(1.0, Span::default()),
+    ///     CifValue::numeric(2.0, Span::default()),
+    ///     CifValue::numeric(3.0, Span::default()),
+    /// ], Span::default());
     /// assert_eq!(list.as_list_len(), Some(3));
     ///
-    /// let text = CifValue::Text("hello".to_string());
+    /// let text = CifValue::text("hello", Span::default());
     /// assert_eq!(text.as_list_len(), None);
     /// ```
     pub fn as_list_len(&self) -> Option<usize> {
-        match self {
-            CifValue::List(list) => Some(list.len()),
+        match &self.kind {
+            CifValueKind::List(list) => Some(list.len()),
             _ => None,
         }
     }
@@ -432,20 +507,20 @@ impl CifValue {
     ///
     /// # Examples
     /// ```
-    /// use cif_parser::CifValue;
+    /// use cif_parser::{CifValue, ast::Span};
     /// use std::collections::HashMap;
     ///
     /// let mut map = HashMap::new();
-    /// map.insert("key1".to_string(), CifValue::Numeric(1.0));
-    /// map.insert("key2".to_string(), CifValue::Numeric(2.0));
-    /// let table = CifValue::Table(map);
+    /// map.insert("key1".to_string(), CifValue::numeric(1.0, Span::default()));
+    /// map.insert("key2".to_string(), CifValue::numeric(2.0, Span::default()));
+    /// let table = CifValue::table(map, Span::default());
     ///
     /// let keys: Vec<&str> = table.as_table_keys().unwrap().collect();
     /// assert_eq!(keys.len(), 2);
     /// ```
     pub fn as_table_keys(&self) -> Option<impl Iterator<Item = &str>> {
-        match self {
-            CifValue::Table(table) => Some(table.keys().map(|s| s.as_str())),
+        match &self.kind {
+            CifValueKind::Table(table) => Some(table.keys().map(|s| s.as_str())),
             _ => None,
         }
     }
@@ -456,22 +531,22 @@ impl CifValue {
     ///
     /// # Examples
     /// ```
-    /// use cif_parser::CifValue;
+    /// use cif_parser::{CifValue, ast::Span};
     /// use std::collections::HashMap;
     ///
     /// let mut map = HashMap::new();
-    /// map.insert("x".to_string(), CifValue::Numeric(1.0));
-    /// let table = CifValue::Table(map);
+    /// map.insert("x".to_string(), CifValue::numeric(1.0, Span::default()));
+    /// let table = CifValue::table(map, Span::default());
     ///
     /// assert!(table.as_table_get("x").is_some());
     /// assert!(table.as_table_get("y").is_none());
     ///
-    /// let text = CifValue::Text("hello".to_string());
+    /// let text = CifValue::text("hello", Span::default());
     /// assert!(text.as_table_get("x").is_none());
     /// ```
     pub fn as_table_get(&self, key: &str) -> Option<&CifValue> {
-        match self {
-            CifValue::Table(table) => table.get(key),
+        match &self.kind {
+            CifValueKind::Table(table) => table.get(key),
             _ => None,
         }
     }
