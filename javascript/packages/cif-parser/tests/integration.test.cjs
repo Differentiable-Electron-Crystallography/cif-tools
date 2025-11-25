@@ -412,4 +412,212 @@ describe('Integration Tests', () => {
       assert.strictEqual(table.get('error').value_type, 'Unknown');
     });
   });
+
+  // =============================================================================
+  // Span Tests - Source location tracking for LSP/IDE features
+  // =============================================================================
+
+  describe('Span Tests', () => {
+    describe('simple.cif spans', () => {
+      it('should have span with all required properties', () => {
+        const content = loadFixture('simple.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        const value = block.get_item('_cell_length_a');
+        const span = value.span;
+
+        // All properties should be accessible (camelCase in JS)
+        assert.ok(typeof span.startLine === 'number');
+        assert.ok(typeof span.startCol === 'number');
+        assert.ok(typeof span.endLine === 'number');
+        assert.ok(typeof span.endCol === 'number');
+
+        // Lines are 1-indexed and should be positive
+        assert.ok(span.startLine >= 1);
+        assert.ok(span.endLine >= 1);
+        assert.ok(span.startCol >= 1);
+        assert.ok(span.endCol >= 1);
+      });
+
+      it('should have correct span for numeric value', () => {
+        const content = loadFixture('simple.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        // Line 2: _cell_length_a    10.0
+        const value = block.get_item('_cell_length_a');
+        const span = value.span;
+
+        assert.strictEqual(span.startLine, 2);
+        assert.strictEqual(span.endLine, 2);
+        // Value "10.0" should span 4 characters (endCol is exclusive)
+        assert.strictEqual(span.endCol - span.startCol, 4);
+      });
+
+      it('should have correct span for text value', () => {
+        const content = loadFixture('simple.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        // Line 8: _title 'Simple Test Structure'
+        const value = block.get_item('_title');
+        const span = value.span;
+
+        assert.strictEqual(span.startLine, 8);
+        assert.strictEqual(span.endLine, 8);
+      });
+
+      it('should have correct span for unknown value (?)', () => {
+        const content = loadFixture('simple.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        // Line 9: _temperature_kelvin ?
+        const value = block.get_item('_temperature_kelvin');
+        const span = value.span;
+
+        assert.strictEqual(span.startLine, 9);
+        assert.strictEqual(span.endLine, 9);
+        // Single character '?' (endCol is exclusive)
+        assert.strictEqual(span.endCol - span.startCol, 1);
+      });
+
+      it('should have correct span for not applicable value (.)', () => {
+        const content = loadFixture('simple.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        // Line 10: _pressure .
+        const value = block.get_item('_pressure');
+        const span = value.span;
+
+        assert.strictEqual(span.startLine, 10);
+        assert.strictEqual(span.endLine, 10);
+        // Single character '.' (endCol is exclusive)
+        assert.strictEqual(span.endCol - span.startCol, 1);
+      });
+
+      it('should support contains() method for hit testing', () => {
+        const content = loadFixture('simple.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        const value = block.get_item('_cell_length_a');
+        const span = value.span;
+
+        // Position inside the span should return true
+        assert.ok(span.contains(span.startLine, span.startCol));
+        assert.ok(span.contains(span.endLine, span.endCol));
+
+        // Position outside the span should return false
+        assert.ok(!span.contains(span.startLine - 1, span.startCol));
+        assert.ok(!span.contains(span.startLine, span.startCol - 1));
+        assert.ok(!span.contains(span.endLine + 1, span.endCol));
+        assert.ok(!span.contains(span.endLine, span.endCol + 1));
+      });
+    });
+
+    describe('loops.cif spans', () => {
+      it('should have correct spans for loop values', () => {
+        const content = loadFixture('loops.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        const atomLoop = block.find_loop('_atom_site_label');
+
+        // First row values should be on line 11
+        const firstLabel = atomLoop.get_value_by_tag(0, '_atom_site_label');
+        assert.strictEqual(firstLabel.span.startLine, 11);
+
+        // Second row values should be on line 12
+        const secondLabel = atomLoop.get_value_by_tag(1, '_atom_site_label');
+        assert.strictEqual(secondLabel.span.startLine, 12);
+
+        // Different columns on same row should have same line but different columns
+        const firstX = atomLoop.get_value_by_tag(0, '_atom_site_fract_x');
+        assert.strictEqual(firstX.span.startLine, firstLabel.span.startLine);
+        assert.ok(firstX.span.startCol !== firstLabel.span.startCol);
+      });
+
+      it('should have distinct spans for loop column values', () => {
+        const content = loadFixture('loops.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        const atomLoop = block.find_loop('_atom_site_label');
+        const labels = atomLoop.get_column('_atom_site_label');
+
+        // Each label should have a different line
+        const lines = labels.map(label => label.span.startLine);
+        const uniqueLines = new Set(lines);
+        assert.strictEqual(uniqueLines.size, lines.length); // All unique lines
+
+        // Lines should be consecutive (11, 12, 13, 14, 15)
+        assert.deepStrictEqual(lines, [11, 12, 13, 14, 15]);
+      });
+    });
+
+    describe('complex.cif spans', () => {
+      it('should have spans across multiple data blocks', () => {
+        const content = loadFixture('complex.cif');
+        const doc = parse(content);
+
+        const block1 = doc.get_block(0);
+        const block2 = doc.get_block(1);
+
+        // Values in block2 should have higher line numbers than block1
+        // Both blocks have _entry_id
+        const entry1 = block1.get_item('_entry_id');
+        const entry2 = block2.get_item('_entry_id');
+
+        assert.ok(entry2.span.startLine > entry1.span.startLine);
+      });
+    });
+
+    describe('pycifrw_xanthine.cif spans', () => {
+      it('should have correct span for uncertainty values', () => {
+        const content = loadFixture('pycifrw_xanthine.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        // Value with uncertainty like 10.01(11) should have span covering the whole notation
+        const cellA = block.get_item('_cell_length_a');
+        const span = cellA.span;
+
+        assert.ok(span.startLine >= 1);
+        assert.ok(span.endCol > span.startCol); // Should span multiple characters
+      });
+    });
+
+    describe('CIF 2.0 spans', () => {
+      it('should have spans for list values', () => {
+        const content = loadFixture('cif2_lists.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        // The list itself should have a span
+        const numericList = block.get_item('_numeric_list');
+        assert.ok(numericList.span.startLine >= 1);
+
+        // Nested list should also have spans
+        const nestedList = block.get_item('_nested_list');
+        assert.ok(nestedList.span.startLine >= 1);
+      });
+
+      it('should have spans for table values', () => {
+        const content = loadFixture('cif2_tables.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        // The table itself should have a span
+        const simpleTable = block.get_item('_simple_table');
+        assert.ok(simpleTable.span.startLine >= 1);
+
+        // Coordinates table should have a span
+        const coords = block.get_item('_coordinates');
+        assert.ok(coords.span.startLine >= 1);
+      });
+    });
+  });
 });

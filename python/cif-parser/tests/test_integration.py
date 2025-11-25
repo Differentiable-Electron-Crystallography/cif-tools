@@ -383,3 +383,271 @@ def test_cif2_table_with_unknown(cif2_tables_cif):
     assert len(py_value) == 2
     assert py_value["value"] == 42.0
     assert py_value["error"] is None  # Unknown converts to None
+
+
+# =============================================================================
+# Span Tests - Source location tracking for LSP/IDE features
+# =============================================================================
+
+
+def test_span_basic_properties(simple_cif):
+    """Test that span has all required properties."""
+    doc = cif_parser.parse_file(str(simple_cif))
+    block = doc.first_block()
+
+    value = block.get_item("_cell_length_a")
+    span = value.span
+
+    # All properties should be accessible
+    assert hasattr(span, "start_line")
+    assert hasattr(span, "start_col")
+    assert hasattr(span, "end_line")
+    assert hasattr(span, "end_col")
+
+    # Lines are 1-indexed and should be positive
+    assert span.start_line >= 1
+    assert span.end_line >= 1
+    assert span.start_col >= 1
+    assert span.end_col >= 1
+
+
+def test_span_numeric_value_position(simple_cif):
+    """Test span position for numeric value in simple.cif."""
+    doc = cif_parser.parse_file(str(simple_cif))
+    block = doc.first_block()
+
+    # Line 2: _cell_length_a    10.0
+    value = block.get_item("_cell_length_a")
+    span = value.span
+
+    assert span.start_line == 2
+    assert span.end_line == 2
+    # Value "10.0" should span 4 characters (end_col is exclusive)
+    assert span.end_col - span.start_col == 4
+
+
+def test_span_text_value_position(simple_cif):
+    """Test span position for text value in simple.cif."""
+    doc = cif_parser.parse_file(str(simple_cif))
+    block = doc.first_block()
+
+    # Line 8: _title 'Simple Test Structure'
+    value = block.get_item("_title")
+    span = value.span
+
+    assert span.start_line == 8
+    assert span.end_line == 8
+
+
+def test_span_unknown_value_position(simple_cif):
+    """Test span position for unknown value (?) in simple.cif."""
+    doc = cif_parser.parse_file(str(simple_cif))
+    block = doc.first_block()
+
+    # Line 9: _temperature_kelvin ?
+    value = block.get_item("_temperature_kelvin")
+    span = value.span
+
+    assert span.start_line == 9
+    assert span.end_line == 9
+    # Single character '?' (end_col is exclusive)
+    assert span.end_col - span.start_col == 1
+
+
+def test_span_not_applicable_value_position(simple_cif):
+    """Test span position for not applicable value (.) in simple.cif."""
+    doc = cif_parser.parse_file(str(simple_cif))
+    block = doc.first_block()
+
+    # Line 10: _pressure .
+    value = block.get_item("_pressure")
+    span = value.span
+
+    assert span.start_line == 10
+    assert span.end_line == 10
+    # Single character '.' (end_col is exclusive)
+    assert span.end_col - span.start_col == 1
+
+
+def test_span_contains_method(simple_cif):
+    """Test span.contains() method for hit testing."""
+    doc = cif_parser.parse_file(str(simple_cif))
+    block = doc.first_block()
+
+    value = block.get_item("_cell_length_a")
+    span = value.span
+
+    # Position inside the span should return True
+    assert span.contains(span.start_line, span.start_col)
+    assert span.contains(span.end_line, span.end_col)
+
+    # Position outside the span should return False
+    assert not span.contains(span.start_line - 1, span.start_col)
+    assert not span.contains(span.start_line, span.start_col - 1)
+    assert not span.contains(span.end_line + 1, span.end_col)
+    assert not span.contains(span.end_line, span.end_col + 1)
+
+
+def test_span_str_representation(simple_cif):
+    """Test span string representation."""
+    doc = cif_parser.parse_file(str(simple_cif))
+    block = doc.first_block()
+
+    value = block.get_item("_cell_length_a")
+    span = value.span
+
+    # String representation should be in format "line:col-line:col" or "line:col-col"
+    span_str = str(span)
+    assert ":" in span_str
+    assert span_str  # Not empty
+
+
+def test_span_repr(simple_cif):
+    """Test span repr representation."""
+    doc = cif_parser.parse_file(str(simple_cif))
+    block = doc.first_block()
+
+    value = block.get_item("_cell_length_a")
+    span = value.span
+
+    # Repr should contain all the fields
+    span_repr = repr(span)
+    assert "start_line" in span_repr
+    assert "start_col" in span_repr
+    assert "end_line" in span_repr
+    assert "end_col" in span_repr
+
+
+def test_span_equality(simple_cif):
+    """Test span equality comparison."""
+    doc = cif_parser.parse_file(str(simple_cif))
+    block = doc.first_block()
+
+    # Same value should have same span
+    value1 = block.get_item("_cell_length_a")
+    value2 = block.get_item("_cell_length_a")
+    assert value1.span == value2.span
+
+    # Different values should have different spans
+    value3 = block.get_item("_cell_length_b")
+    assert value1.span != value3.span
+
+
+def test_span_hashable(simple_cif):
+    """Test that span can be used in sets/dicts."""
+    doc = cif_parser.parse_file(str(simple_cif))
+    block = doc.first_block()
+
+    span1 = block.get_item("_cell_length_a").span
+    span2 = block.get_item("_cell_length_b").span
+
+    # Should be hashable
+    span_set = {span1, span2}
+    assert len(span_set) == 2
+
+    # Same span should hash the same
+    span1_again = block.get_item("_cell_length_a").span
+    span_set.add(span1_again)
+    assert len(span_set) == 2  # No new element added
+
+
+def test_span_loop_values(loops_cif):
+    """Test span for values within loops."""
+    doc = cif_parser.parse_file(str(loops_cif))
+    block = doc.first_block()
+
+    atom_loop = block.find_loop("_atom_site_label")
+
+    # First row values should be on line 11
+    first_label = atom_loop.get_by_tag(0, "_atom_site_label")
+    assert first_label.span.start_line == 11
+
+    # Second row values should be on line 12
+    second_label = atom_loop.get_by_tag(1, "_atom_site_label")
+    assert second_label.span.start_line == 12
+
+    # Different columns on same row should have same line but different columns
+    first_x = atom_loop.get_by_tag(0, "_atom_site_fract_x")
+    assert first_x.span.start_line == first_label.span.start_line
+    assert first_x.span.start_col != first_label.span.start_col
+
+
+def test_span_loop_column_values(loops_cif):
+    """Test that loop column values have distinct spans."""
+    doc = cif_parser.parse_file(str(loops_cif))
+    block = doc.first_block()
+
+    atom_loop = block.find_loop("_atom_site_label")
+    labels = atom_loop.get_column("_atom_site_label")
+
+    # Each label should have a different line
+    lines = [label.span.start_line for label in labels]
+    assert len(set(lines)) == len(lines)  # All unique lines
+
+    # Lines should be consecutive (11, 12, 13, 14, 15)
+    assert lines == [11, 12, 13, 14, 15]
+
+
+def test_span_multiple_blocks(complex_cif):
+    """Test spans across multiple data blocks."""
+    doc = cif_parser.parse_file(str(complex_cif))
+
+    block1 = doc.get_block(0)
+    block2 = doc.get_block(1)
+
+    # Values in block2 should have higher line numbers than block1
+    # Both blocks have _entry_id
+    entry1 = block1.get_item("_entry_id")
+    entry2 = block2.get_item("_entry_id")
+
+    assert entry2.span.start_line > entry1.span.start_line
+
+
+def test_span_uncertainty_value(xanthine_cif):
+    """Test span for values with uncertainty notation."""
+    doc = cif_parser.parse_file(str(xanthine_cif))
+    block = doc.first_block()
+
+    # Value with uncertainty like 10.01(11) should have span covering the whole notation
+    cell_a = block.get_item("_cell_length_a")
+    span = cell_a.span
+
+    assert span.start_line >= 1
+    assert span.end_col > span.start_col  # Should span multiple characters
+
+
+def test_span_cif2_list_values(cif2_lists_cif):
+    """Test span for CIF 2.0 list values."""
+    doc = cif_parser.parse_file(str(cif2_lists_cif))
+    block = doc.first_block()
+
+    # The list itself should have a span
+    numeric_list = block.get_item("_numeric_list")
+    assert numeric_list.span.start_line >= 1
+
+    # Nested list should also have spans
+    nested_list = block.get_item("_nested_list")
+    assert nested_list.span.start_line >= 1
+
+
+def test_span_cif2_table_values(cif2_tables_cif):
+    """Test span for CIF 2.0 table values."""
+    doc = cif_parser.parse_file(str(cif2_tables_cif))
+    block = doc.first_block()
+
+    # The table itself should have a span
+    simple_table = block.get_item("_simple_table")
+    assert simple_table.span.start_line >= 1
+
+    # Coordinates table should have a span
+    coords = block.get_item("_coordinates")
+    assert coords.span.start_line >= 1
+
+
+def test_span_class_exported():
+    """Test that Span class is properly exported."""
+    from cif_parser import Span
+
+    assert Span is not None
+    # Span instances come from values, not constructed directly
+    # But the class should be importable for type hints

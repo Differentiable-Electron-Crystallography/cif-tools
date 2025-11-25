@@ -58,6 +58,72 @@ impl From<CifVersion> for JsCifVersion {
     }
 }
 
+/// JavaScript-compatible representation of a source span
+#[wasm_bindgen]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct JsSpan {
+    /// Starting line number (1-indexed)
+    start_line: usize,
+    /// Starting column number (1-indexed)
+    start_col: usize,
+    /// Ending line number (1-indexed)
+    end_line: usize,
+    /// Ending column number (1-indexed)
+    end_col: usize,
+}
+
+#[wasm_bindgen]
+impl JsSpan {
+    /// Starting line number (1-indexed)
+    #[wasm_bindgen(getter = startLine)]
+    pub fn start_line(&self) -> usize {
+        self.start_line
+    }
+
+    /// Starting column number (1-indexed)
+    #[wasm_bindgen(getter = startCol)]
+    pub fn start_col(&self) -> usize {
+        self.start_col
+    }
+
+    /// Ending line number (1-indexed)
+    #[wasm_bindgen(getter = endLine)]
+    pub fn end_line(&self) -> usize {
+        self.end_line
+    }
+
+    /// Ending column number (1-indexed)
+    #[wasm_bindgen(getter = endCol)]
+    pub fn end_col(&self) -> usize {
+        self.end_col
+    }
+
+    /// Check if a line and column position is within this span
+    pub fn contains(&self, line: usize, col: usize) -> bool {
+        if line < self.start_line || line > self.end_line {
+            return false;
+        }
+        if line == self.start_line && col < self.start_col {
+            return false;
+        }
+        if line == self.end_line && col > self.end_col {
+            return false;
+        }
+        true
+    }
+}
+
+impl From<crate::ast::Span> for JsSpan {
+    fn from(span: crate::ast::Span) -> Self {
+        JsSpan {
+            start_line: span.start_line,
+            start_col: span.start_col,
+            end_line: span.end_line,
+            end_col: span.end_col,
+        }
+    }
+}
+
 /// JavaScript-compatible representation of a CIF value
 #[wasm_bindgen]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,6 +134,7 @@ pub struct JsCifValue {
     uncertainty_value: Option<f64>,
     list_value: Option<Vec<JsCifValue>>,
     table_value: Option<HashMap<String, JsCifValue>>,
+    span: JsSpan,
 }
 
 #[wasm_bindgen]
@@ -138,6 +205,15 @@ impl JsCifValue {
         self.value_type == "Table"
     }
 
+    /// Get the source location span for this value
+    ///
+    /// Returns the position in the source CIF file where this value appears.
+    /// Useful for LSP/IDE features, error reporting, and syntax highlighting.
+    #[wasm_bindgen(getter)]
+    pub fn span(&self) -> JsSpan {
+        self.span
+    }
+
     /// Get the list value as a JavaScript array (if this is a list value)
     /// Returns the serialized list or undefined if not a list
     #[wasm_bindgen(getter)]
@@ -173,6 +249,7 @@ impl JsCifValue {
 
 impl From<&CifValue> for JsCifValue {
     fn from(value: &CifValue) -> Self {
+        let span = value.span.into();
         match &value.kind {
             CifValueKind::Text(s) => JsCifValue {
                 value_type: "Text".to_string(),
@@ -181,6 +258,7 @@ impl From<&CifValue> for JsCifValue {
                 uncertainty_value: None,
                 list_value: None,
                 table_value: None,
+                span,
             },
             CifValueKind::Numeric(n) => JsCifValue {
                 value_type: "Numeric".to_string(),
@@ -189,6 +267,7 @@ impl From<&CifValue> for JsCifValue {
                 uncertainty_value: None,
                 list_value: None,
                 table_value: None,
+                span,
             },
             CifValueKind::NumericWithUncertainty { value, uncertainty } => JsCifValue {
                 value_type: "NumericWithUncertainty".to_string(),
@@ -197,6 +276,7 @@ impl From<&CifValue> for JsCifValue {
                 uncertainty_value: Some(*uncertainty),
                 list_value: None,
                 table_value: None,
+                span,
             },
             CifValueKind::Unknown => JsCifValue {
                 value_type: "Unknown".to_string(),
@@ -205,6 +285,7 @@ impl From<&CifValue> for JsCifValue {
                 uncertainty_value: None,
                 list_value: None,
                 table_value: None,
+                span,
             },
             CifValueKind::NotApplicable => JsCifValue {
                 value_type: "NotApplicable".to_string(),
@@ -213,6 +294,7 @@ impl From<&CifValue> for JsCifValue {
                 uncertainty_value: None,
                 list_value: None,
                 table_value: None,
+                span,
             },
             CifValueKind::List(values) => JsCifValue {
                 value_type: "List".to_string(),
@@ -221,6 +303,7 @@ impl From<&CifValue> for JsCifValue {
                 uncertainty_value: None,
                 list_value: Some(values.iter().map(|v| v.into()).collect()),
                 table_value: None,
+                span,
             },
             CifValueKind::Table(map) => JsCifValue {
                 value_type: "Table".to_string(),
@@ -229,6 +312,7 @@ impl From<&CifValue> for JsCifValue {
                 uncertainty_value: None,
                 list_value: None,
                 table_value: Some(map.iter().map(|(k, v)| (k.clone(), v.into())).collect()),
+                span,
             },
         }
     }

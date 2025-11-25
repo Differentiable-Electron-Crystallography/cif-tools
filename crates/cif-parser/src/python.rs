@@ -4,7 +4,8 @@
 //! functionality, following Python naming conventions and idioms.
 
 use crate::{
-    CifBlock, CifDocument, CifError, CifFrame, CifLoop, CifValue, CifValueKind, CifVersion,
+    ast::Span, CifBlock, CifDocument, CifError, CifFrame, CifLoop, CifValue, CifValueKind,
+    CifVersion,
 };
 use pyo3::exceptions::{PyIOError, PyIndexError, PyKeyError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
@@ -82,6 +83,80 @@ impl From<CifVersion> for PyVersion {
     }
 }
 
+/// Python wrapper for source location (Span)
+///
+/// Tracks where a value appears in the source CIF file.
+/// Useful for LSP/IDE features, error reporting, and highlighting.
+#[pyclass(name = "Span")]
+#[derive(Clone, Copy)]
+pub struct PySpan {
+    inner: Span,
+}
+
+#[pymethods]
+impl PySpan {
+    /// Starting line number (1-indexed)
+    #[getter]
+    fn start_line(&self) -> usize {
+        self.inner.start_line
+    }
+
+    /// Starting column number (1-indexed)
+    #[getter]
+    fn start_col(&self) -> usize {
+        self.inner.start_col
+    }
+
+    /// Ending line number (1-indexed)
+    #[getter]
+    fn end_line(&self) -> usize {
+        self.inner.end_line
+    }
+
+    /// Ending column number (1-indexed)
+    #[getter]
+    fn end_col(&self) -> usize {
+        self.inner.end_col
+    }
+
+    /// Check if a line and column position is within this span
+    fn contains(&self, line: usize, col: usize) -> bool {
+        self.inner.contains(line, col)
+    }
+
+    /// String representation (e.g., "1:5-3:10")
+    fn __str__(&self) -> String {
+        format!("{}", self.inner)
+    }
+
+    /// Debug representation
+    fn __repr__(&self) -> String {
+        format!(
+            "Span(start_line={}, start_col={}, end_line={}, end_col={})",
+            self.inner.start_line, self.inner.start_col, self.inner.end_line, self.inner.end_col
+        )
+    }
+
+    /// Python equality
+    fn __eq__(&self, other: &PySpan) -> bool {
+        self.inner == other.inner
+    }
+
+    /// Hash support for use in sets/dicts
+    fn __hash__(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        self.inner.hash(&mut hasher);
+        hasher.finish()
+    }
+}
+
+impl From<Span> for PySpan {
+    fn from(span: Span) -> Self {
+        PySpan { inner: span }
+    }
+}
+
 /// Python wrapper for CifValue with Pythonic interface
 #[pyclass(name = "Value")]
 #[derive(Clone)]
@@ -131,6 +206,15 @@ impl PyValue {
     #[getter]
     fn is_table(&self) -> bool {
         self.inner.is_table()
+    }
+
+    /// Get the source location span for this value
+    ///
+    /// Returns the position in the source CIF file where this value appears.
+    /// Useful for LSP/IDE features, error reporting, and syntax highlighting.
+    #[getter]
+    fn span(&self) -> PySpan {
+        self.inner.span.into()
     }
 
     /// Get the value as text (returns None if not a text value)
@@ -731,6 +815,7 @@ impl PyDocumentIterator {
 #[pymodule]
 fn _cif_parser(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyVersion>()?;
+    m.add_class::<PySpan>()?;
     m.add_class::<PyDocument>()?;
     m.add_class::<PyDocumentIterator>()?;
     m.add_class::<PyBlock>()?;
