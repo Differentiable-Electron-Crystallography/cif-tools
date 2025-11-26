@@ -241,6 +241,42 @@ build-all: rust-build python-build-all wasm-build-all
     @echo "✅ All builds complete"
 
 # ============================================================================
+# Benchmarking & Performance
+# ============================================================================
+
+# Default dictionary file for benchmarks
+dict_file := "crates/cif-validator/dics/cif_core.dic"
+
+# Run quick CIF parsing benchmark
+bench-parse file=dict_file:
+    cargo run --release -p cif-parser --bin bench_parse -- {{file}}
+
+# Run detailed PEST parsing benchmark (shows PEST vs AST building time)
+bench-pest file=dict_file:
+    cargo run --release -p cif-parser --bin bench_pest_only -- {{file}}
+
+# Run validator performance tests
+bench-validator:
+    cargo test -p cif-validator --release -- performance --nocapture
+
+# Run all benchmarks
+bench: bench-pest bench-validator
+    @echo "✅ All benchmarks complete"
+
+# Profile parsing with different file sizes (creates temp files)
+bench-scaling:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "=== Scaling Benchmark ==="
+    for n in 100 500 1000 2000 5000; do
+        tmpfile=$(mktemp)
+        head -n $n {{dict_file}} > "$tmpfile" 2>/dev/null || true
+        echo -n "$n lines: "
+        cargo run --release -p cif-parser --bin bench_parse -- "$tmpfile" 2>/dev/null | grep "CIF parse:" || echo "parse failed (incomplete file)"
+        rm -f "$tmpfile"
+    done
+
+# ============================================================================
 # Development & Utilities
 # ============================================================================
 

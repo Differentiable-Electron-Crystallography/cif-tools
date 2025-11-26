@@ -41,11 +41,7 @@ fn validate(cif_content: &str, _dictionary: &str) -> PyResult<Vec<String>> {
     })?;
 
     // Convert errors to strings
-    let error_messages: Vec<String> = result
-        .errors
-        .iter()
-        .map(|e| format!("{}: {}", e.location, e.message))
-        .collect();
+    let error_messages: Vec<String> = result.errors.iter().map(|e| e.to_string()).collect();
 
     Ok(error_messages)
 }

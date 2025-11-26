@@ -49,10 +49,11 @@ name = "cif-validator"
 version = "0.1.0"
 dependencies = [
  "cif-parser",
+ "drel-parser",
  "pyo3",
  "serde",
  "serde_json",
- "wasm-bindgen",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

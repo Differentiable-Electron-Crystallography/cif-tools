@@ -94,7 +94,8 @@ data_token = { ^"data_" }
 
 // CIF 2.0 EBNF: save-token = ( 'S' | 's' ), ( 'A' | 'a' ), ( 'V' | 'v' ), ( 'E' | 'e' ), '_'
 // Case-insensitive "save_" keyword
-save_token = { ^"save_" }
+// PERFORMANCE: @ makes this atomic to avoid memoization overhead
+save_token = @{ ^"save_" }
 
 // CIF 2.0 EBNF: loop-token = ( 'L' | 'l' ), ( 'O' | 'o' ), ( 'O' | 'o' ), ( 'P' | 'p' ), '_'
 // Case-insensitive "loop_" keyword
@@ -169,11 +170,13 @@ apostrophe3_delim = { "'''" }
 
 // CIF 2.0 EBNF: quote3-content = { [ '"', [ '"' ] ], not-quote, { not-quote } }
 // Content can contain single or double quotes, but not triple quotes
-// Simplified implementation: Match anything until triple-quote delimiter
-quote3_content = { (!"\"\"\"" ~ ANY)* }
+// PERFORMANCE: Optimized to avoid O(n²) negative lookahead
+// Match non-quote chars directly, single quotes, or double quotes not starting triple sequence
+quote3_content = { (!"\"" ~ ANY | "\"" ~ !"\"" | "\"\"" ~ !"\"")* }
 
 // CIF 2.0 EBNF: apostrophe3-content = { [ "'", [ "'" ] ], not-apostrophe, { not-apostrophe } }
-apostrophe3_content = { (!"'''" ~ ANY)* }
+// PERFORMANCE: Similar optimization as quote3_content
+apostrophe3_content = { (!"'" ~ ANY | "'" ~ !"'" | "''" ~ !"'")* }
 
 // CIF 2.0 EBNF: triple-quoted-string = ( quote3-delim, quote3-content, quote3-delim )
 //                                    | ( apostrophe3-delim, apostrophe3-content, apostrophe3-delim )
@@ -195,7 +198,10 @@ text_delim = { line_term ~ ";" }
 
 // CIF 2.0 EBNF: text-content = { allchars } - ( { allchars }, text-delim, { allchars } )
 // Any content that doesn't contain the text delimiter
-text_content = { (!text_delim ~ ANY)* }
+// PERFORMANCE: Optimized to avoid O(n²) negative lookahead. Match:
+// 1. Non-newline characters directly
+// 2. Newlines only if not followed by semicolon
+text_content = { ((!line_term ~ ANY) | (line_term ~ !";"))* }
 
 // CIF 2.0 EBNF: text-field = text-delim, text-content, text-delim
 // Multi-line text field bounded by semicolons at line starts
@@ -396,9 +402,10 @@ loop_block = {
 
 // CIF 2.0 EBNF: save-frame = save-heading, { frame-content }, wspace, save-token
 // Save frame: header, content, closing "save_"
+// PERFORMANCE: Order alternatives by specificity - loops have keyword prefix
 frame = {
     save_heading ~ ws_or_eof ~
-    (dataitem | loop_block)* ~
+    (loop_block | dataitem)* ~
     endframe ~ ws_or_eof
 }
 
@@ -407,13 +414,25 @@ frame = {
 
 // CIF 2.0 EBNF: data-block = data-heading, { block-content }
 // Data block: header followed by content (data items, loops, save frames)
+// PERFORMANCE: Use positive lookahead to dispatch quickly based on first character
+// - save_ starts frames
+// - loop_ starts loops
+// - _ (underscore) starts data items
 data_block = {
     data_heading ~ ws_or_eof ~
-    (dataitem | loop_block | frame)*
+    block_item*
+}
+
+// Single block content item with prefix-based dispatch
+// PERFORMANCE: Check prefix with lookahead before committing to parse
+block_item = _{
+    (&"s" | &"S") ~ frame |
+    (&"l" | &"L") ~ loop_block |
+    (&"_") ~ dataitem
 }
 
 // Backward compatibility alias (CIF 1.1 naming)
-datablock = { datablockheading ~ ws_or_eof ~ (dataitem | loop_block | frame)* }
+datablock = { datablockheading ~ ws_or_eof ~ block_item* }
 
 // ===== PART 12: CIF FILE STRUCTURE =====
 // Reference: CIF 2.0 EBNF CIF2-file production

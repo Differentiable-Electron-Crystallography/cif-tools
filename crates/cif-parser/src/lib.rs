@@ -184,7 +184,7 @@ pub fn parse_string(input: &str) -> Result<CifDocument, CifError> {
 
 // ===== Re-export for internal use =====
 pub use pest::iterators::Pair;
-// Note: Rule enum is automatically public via the #[derive(Parser)] macro
+// Rule enum is automatically public via the #[derive(Parser)] macro
 
 // ===== Conditional Compilation Modules =====
 
