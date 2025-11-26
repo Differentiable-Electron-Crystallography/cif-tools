@@ -3,7 +3,10 @@
 //! This module provides Python-native wrappers around the core CIF parsing
 //! functionality, following Python naming conventions and idioms.
 
-use crate::{CifBlock, CifDocument, CifError, CifFrame, CifLoop, CifValue, CifVersion};
+use crate::{
+    ast::Span, CifBlock, CifDocument, CifError, CifFrame, CifLoop, CifValue, CifValueKind,
+    CifVersion,
+};
 use pyo3::exceptions::{PyIOError, PyIndexError, PyKeyError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyString;
@@ -80,6 +83,80 @@ impl From<CifVersion> for PyVersion {
     }
 }
 
+/// Python wrapper for source location (Span)
+///
+/// Tracks where a value appears in the source CIF file.
+/// Useful for LSP/IDE features, error reporting, and highlighting.
+#[pyclass(name = "Span")]
+#[derive(Clone, Copy)]
+pub struct PySpan {
+    inner: Span,
+}
+
+#[pymethods]
+impl PySpan {
+    /// Starting line number (1-indexed)
+    #[getter]
+    fn start_line(&self) -> usize {
+        self.inner.start_line
+    }
+
+    /// Starting column number (1-indexed)
+    #[getter]
+    fn start_col(&self) -> usize {
+        self.inner.start_col
+    }
+
+    /// Ending line number (1-indexed)
+    #[getter]
+    fn end_line(&self) -> usize {
+        self.inner.end_line
+    }
+
+    /// Ending column number (1-indexed)
+    #[getter]
+    fn end_col(&self) -> usize {
+        self.inner.end_col
+    }
+
+    /// Check if a line and column position is within this span
+    fn contains(&self, line: usize, col: usize) -> bool {
+        self.inner.contains(line, col)
+    }
+
+    /// String representation (e.g., "1:5-3:10")
+    fn __str__(&self) -> String {
+        format!("{}", self.inner)
+    }
+
+    /// Debug representation
+    fn __repr__(&self) -> String {
+        format!(
+            "Span(start_line={}, start_col={}, end_line={}, end_col={})",
+            self.inner.start_line, self.inner.start_col, self.inner.end_line, self.inner.end_col
+        )
+    }
+
+    /// Python equality
+    fn __eq__(&self, other: &PySpan) -> bool {
+        self.inner == other.inner
+    }
+
+    /// Hash support for use in sets/dicts
+    fn __hash__(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        self.inner.hash(&mut hasher);
+        hasher.finish()
+    }
+}
+
+impl From<Span> for PySpan {
+    fn from(span: Span) -> Self {
+        PySpan { inner: span }
+    }
+}
+
 /// Python wrapper for CifValue with Pythonic interface
 #[pyclass(name = "Value")]
 #[derive(Clone)]
@@ -92,46 +169,52 @@ impl PyValue {
     /// Check if this is a text value
     #[getter]
     fn is_text(&self) -> bool {
-        matches!(self.inner, CifValue::Text(_))
+        self.inner.is_text()
     }
 
     /// Check if this is a numeric value (including values with uncertainty)
     #[getter]
     fn is_numeric(&self) -> bool {
-        matches!(
-            self.inner,
-            CifValue::Numeric(_) | CifValue::NumericWithUncertainty { .. }
-        )
+        self.inner.is_numeric()
     }
 
     /// Check if this is a numeric value with uncertainty
     #[getter]
     fn is_numeric_with_uncertainty(&self) -> bool {
-        matches!(self.inner, CifValue::NumericWithUncertainty { .. })
+        matches!(self.inner.kind, CifValueKind::NumericWithUncertainty { .. })
     }
 
     /// Check if this is an unknown value (?)
     #[getter]
     fn is_unknown(&self) -> bool {
-        matches!(self.inner, CifValue::Unknown)
+        self.inner.is_unknown()
     }
 
     /// Check if this is a not-applicable value (.)
     #[getter]
     fn is_not_applicable(&self) -> bool {
-        matches!(self.inner, CifValue::NotApplicable)
+        self.inner.is_not_applicable()
     }
 
     /// Check if this is a list value (CIF 2.0 only)
     #[getter]
     fn is_list(&self) -> bool {
-        matches!(self.inner, CifValue::List(_))
+        self.inner.is_list()
     }
 
     /// Check if this is a table value (CIF 2.0 only)
     #[getter]
     fn is_table(&self) -> bool {
-        matches!(self.inner, CifValue::Table(_))
+        self.inner.is_table()
+    }
+
+    /// Get the source location span for this value
+    ///
+    /// Returns the position in the source CIF file where this value appears.
+    /// Useful for LSP/IDE features, error reporting, and syntax highlighting.
+    #[getter]
+    fn span(&self) -> PySpan {
+        self.inner.span.into()
     }
 
     /// Get the value as text (returns None if not a text value)
@@ -156,29 +239,29 @@ impl PyValue {
     /// Get the value type as a string
     #[getter]
     fn value_type(&self) -> String {
-        match self.inner {
-            CifValue::Text(_) => "text".to_string(),
-            CifValue::Numeric(_) => "numeric".to_string(),
-            CifValue::NumericWithUncertainty { .. } => "numeric_with_uncertainty".to_string(),
-            CifValue::Unknown => "unknown".to_string(),
-            CifValue::NotApplicable => "not_applicable".to_string(),
-            CifValue::List(_) => "list".to_string(),
-            CifValue::Table(_) => "table".to_string(),
+        match &self.inner.kind {
+            CifValueKind::Text(_) => "text".to_string(),
+            CifValueKind::Numeric(_) => "numeric".to_string(),
+            CifValueKind::NumericWithUncertainty { .. } => "numeric_with_uncertainty".to_string(),
+            CifValueKind::Unknown => "unknown".to_string(),
+            CifValueKind::NotApplicable => "not_applicable".to_string(),
+            CifValueKind::List(_) => "list".to_string(),
+            CifValueKind::Table(_) => "table".to_string(),
         }
     }
 
     /// Convert to Python native type
     /// For NumericWithUncertainty, returns just the numeric value (use uncertainty property for the uncertainty)
     fn to_python(&self, py: Python) -> PyResult<Py<PyAny>> {
-        match &self.inner {
-            CifValue::Text(s) => Ok(PyString::new(py, s).into_any().unbind()),
-            CifValue::Numeric(n) => Ok(n.into_pyobject(py)?.into_any().unbind()),
-            CifValue::NumericWithUncertainty { value, .. } => {
+        match &self.inner.kind {
+            CifValueKind::Text(s) => Ok(PyString::new(py, s).into_any().unbind()),
+            CifValueKind::Numeric(n) => Ok(n.into_pyobject(py)?.into_any().unbind()),
+            CifValueKind::NumericWithUncertainty { value, .. } => {
                 Ok(value.into_pyobject(py)?.into_any().unbind())
             }
-            CifValue::Unknown => Ok(py.None()),
-            CifValue::NotApplicable => Ok(py.None()),
-            CifValue::List(values) => {
+            CifValueKind::Unknown => Ok(py.None()),
+            CifValueKind::NotApplicable => Ok(py.None()),
+            CifValueKind::List(values) => {
                 // Convert Vec<CifValue> to Python list
                 let py_list: Vec<Py<PyAny>> = values
                     .iter()
@@ -186,7 +269,7 @@ impl PyValue {
                     .collect::<PyResult<Vec<_>>>()?;
                 Ok(py_list.into_pyobject(py)?.into_any().unbind())
             }
-            CifValue::Table(map) => {
+            CifValueKind::Table(map) => {
                 // Convert HashMap to Python dict
                 let py_dict: HashMap<String, Py<PyAny>> = map
                     .iter()
@@ -199,22 +282,22 @@ impl PyValue {
 
     /// String representation
     fn __str__(&self) -> String {
-        match &self.inner {
-            CifValue::Text(s) => format!("'{s}'"),
-            CifValue::Numeric(n) => n.to_string(),
-            CifValue::NumericWithUncertainty { value, uncertainty } => {
+        match &self.inner.kind {
+            CifValueKind::Text(s) => format!("'{s}'"),
+            CifValueKind::Numeric(n) => n.to_string(),
+            CifValueKind::NumericWithUncertainty { value, uncertainty } => {
                 format!("{}(±{})", value, uncertainty)
             }
-            CifValue::Unknown => "?".to_string(),
-            CifValue::NotApplicable => ".".to_string(),
-            CifValue::List(values) => {
+            CifValueKind::Unknown => "?".to_string(),
+            CifValueKind::NotApplicable => ".".to_string(),
+            CifValueKind::List(values) => {
                 let items: Vec<String> = values
                     .iter()
                     .map(|v| PyValue::from(v.clone()).__str__())
                     .collect();
                 format!("[{}]", items.join(" "))
             }
-            CifValue::Table(map) => {
+            CifValueKind::Table(map) => {
                 let items: Vec<String> = map
                     .iter()
                     .map(|(k, v)| format!("{}:{}", k, PyValue::from(v.clone()).__str__()))
@@ -732,6 +815,7 @@ impl PyDocumentIterator {
 #[pymodule]
 fn _cif_parser(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyVersion>()?;
+    m.add_class::<PySpan>()?;
     m.add_class::<PyDocument>()?;
     m.add_class::<PyDocumentIterator>()?;
     m.add_class::<PyBlock>()?;

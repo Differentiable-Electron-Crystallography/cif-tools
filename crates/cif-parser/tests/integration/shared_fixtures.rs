@@ -4,7 +4,7 @@
 // These tests are designed to be ported to Python and JavaScript for test parity.
 
 use crate::fixture_path;
-use cif_parser::{CifValue, CifVersion, Document};
+use cif_parser::{CifValueKind, CifVersion, Document};
 
 // =============================================================================
 // simple.cif - Basic CIF with unknown (?) and not-applicable (.) values
@@ -26,7 +26,7 @@ fn test_simple_unknown_value() {
     let block = &doc.blocks[0];
 
     let value = block.get_item("_temperature_kelvin").unwrap();
-    assert!(matches!(value, CifValue::Unknown));
+    assert!(value.is_unknown());
 }
 
 #[test]
@@ -36,7 +36,7 @@ fn test_simple_not_applicable_value() {
     let block = &doc.blocks[0];
 
     let value = block.get_item("_pressure").unwrap();
-    assert!(matches!(value, CifValue::NotApplicable));
+    assert!(value.is_not_applicable());
 }
 
 #[test]
@@ -192,7 +192,7 @@ fn test_xanthine_uncertainty_detection() {
     // Cell length a has uncertainty: 10.01(11)
     let cell_a = block.get_item("_cell_length_a").unwrap();
     assert!(
-        matches!(cell_a, CifValue::NumericWithUncertainty { .. }),
+        matches!(cell_a.kind, CifValueKind::NumericWithUncertainty { .. }),
         "Expected NumericWithUncertainty for _cell_length_a"
     );
 }
@@ -257,7 +257,7 @@ fn test_xanthine_plain_numeric_no_uncertainty() {
 
     // _cell_angle_alpha is plain 90.0 (no uncertainty)
     let alpha = block.get_item("_cell_angle_alpha").unwrap();
-    assert!(matches!(alpha, CifValue::Numeric(_)));
+    assert!(matches!(alpha.kind, CifValueKind::Numeric(_)));
     assert!(alpha.uncertainty().is_none());
 }
 
@@ -312,8 +312,8 @@ fn test_cif2_empty_list() {
     let block = &doc.blocks[0];
 
     let value = block.get_item("_empty_list").unwrap();
-    match value {
-        CifValue::List(items) => assert!(items.is_empty()),
+    match &value.kind {
+        CifValueKind::List(items) => assert!(items.is_empty()),
         _ => panic!("Expected List, got {:?}", value),
     }
 }
@@ -325,8 +325,8 @@ fn test_cif2_single_item_list() {
     let block = &doc.blocks[0];
 
     let value = block.get_item("_single_item").unwrap();
-    match value {
-        CifValue::List(items) => {
+    match &value.kind {
+        CifValueKind::List(items) => {
             assert_eq!(items.len(), 1);
             assert_eq!(items[0].as_numeric().unwrap(), 42.0);
         }
@@ -341,8 +341,8 @@ fn test_cif2_numeric_list() {
     let block = &doc.blocks[0];
 
     let value = block.get_item("_numeric_list").unwrap();
-    match value {
-        CifValue::List(items) => {
+    match &value.kind {
+        CifValueKind::List(items) => {
             assert_eq!(items.len(), 5);
             for (i, item) in items.iter().enumerate() {
                 assert_eq!(item.as_numeric().unwrap(), (i + 1) as f64);
@@ -359,8 +359,8 @@ fn test_cif2_nested_list() {
     let block = &doc.blocks[0];
 
     let value = block.get_item("_nested_list").unwrap();
-    match value {
-        CifValue::List(items) => {
+    match &value.kind {
+        CifValueKind::List(items) => {
             assert_eq!(items.len(), 2);
             // First nested list [1 2]
             let inner1 = items[0].as_list().unwrap();
@@ -384,12 +384,12 @@ fn test_cif2_list_with_unknown() {
     let block = &doc.blocks[0];
 
     let value = block.get_item("_mixed_with_unknown").unwrap();
-    match value {
-        CifValue::List(items) => {
+    match &value.kind {
+        CifValueKind::List(items) => {
             assert_eq!(items.len(), 4);
             assert_eq!(items[0].as_numeric().unwrap(), 1.0);
             assert_eq!(items[1].as_numeric().unwrap(), 2.0);
-            assert!(matches!(items[2], CifValue::Unknown));
+            assert!(items[2].is_unknown());
             assert_eq!(items[3].as_numeric().unwrap(), 4.0);
         }
         _ => panic!("Expected List, got {:?}", value),
@@ -415,8 +415,8 @@ fn test_cif2_empty_table() {
     let block = &doc.blocks[0];
 
     let value = block.get_item("_empty_table").unwrap();
-    match value {
-        CifValue::Table(map) => assert!(map.is_empty()),
+    match &value.kind {
+        CifValueKind::Table(map) => assert!(map.is_empty()),
         _ => panic!("Expected Table, got {:?}", value),
     }
 }
@@ -428,8 +428,8 @@ fn test_cif2_simple_table() {
     let block = &doc.blocks[0];
 
     let value = block.get_item("_simple_table").unwrap();
-    match value {
-        CifValue::Table(map) => {
+    match &value.kind {
+        CifValueKind::Table(map) => {
             assert_eq!(map.len(), 2);
             assert_eq!(map.get("a").unwrap().as_numeric().unwrap(), 1.0);
             assert_eq!(map.get("b").unwrap().as_numeric().unwrap(), 2.0);
@@ -445,8 +445,8 @@ fn test_cif2_coordinates_table() {
     let block = &doc.blocks[0];
 
     let value = block.get_item("_coordinates").unwrap();
-    match value {
-        CifValue::Table(map) => {
+    match &value.kind {
+        CifValueKind::Table(map) => {
             assert_eq!(map.len(), 3);
             assert_eq!(map.get("x").unwrap().as_numeric().unwrap(), 1.5);
             assert_eq!(map.get("y").unwrap().as_numeric().unwrap(), 2.5);
@@ -463,12 +463,160 @@ fn test_cif2_table_with_unknown() {
     let block = &doc.blocks[0];
 
     let value = block.get_item("_with_unknown").unwrap();
-    match value {
-        CifValue::Table(map) => {
+    match &value.kind {
+        CifValueKind::Table(map) => {
             assert_eq!(map.len(), 2);
             assert_eq!(map.get("value").unwrap().as_numeric().unwrap(), 42.0);
-            assert!(matches!(map.get("error").unwrap(), CifValue::Unknown));
+            assert!(map.get("error").unwrap().is_unknown());
         }
         _ => panic!("Expected Table, got {:?}", value),
+    }
+}
+
+// =============================================================================
+// Span Tests with Real Fixtures
+// =============================================================================
+
+/// Test that spans are correctly captured from simple.cif fixture
+#[test]
+fn test_simple_cif_spans() {
+    let path = fixture_path("simple.cif");
+    let doc = Document::from_file(&path).unwrap();
+
+    // Document span should cover the entire file
+    assert_eq!(doc.span.start_line, 1);
+    assert_eq!(doc.span.start_col, 1);
+
+    // Block span should start at line 1 (data_ header)
+    let block = &doc.blocks[0];
+    assert_eq!(block.span.start_line, 1);
+
+    // Items should have correct line numbers
+    let title = block.get_item("_title").unwrap();
+    assert!(
+        title.span.start_line >= 1,
+        "Title span should be on a valid line"
+    );
+}
+
+/// Test loop spans with loops.cif fixture
+#[test]
+fn test_loops_cif_loop_spans() {
+    let path = fixture_path("loops.cif");
+    let doc = Document::from_file(&path).unwrap();
+    let block = &doc.blocks[0];
+
+    // Should have loops with proper spans
+    assert!(!block.loops.is_empty(), "Should have at least one loop");
+
+    for loop_ in &block.loops {
+        // Each loop should have a valid span
+        assert!(
+            loop_.span.start_line >= 1,
+            "Loop should have valid start line"
+        );
+        assert!(
+            loop_.span.start_col >= 1,
+            "Loop should have valid start column"
+        );
+    }
+}
+
+/// Test complex spans with complex.cif fixture (includes frames)
+#[test]
+fn test_complex_cif_frame_spans() {
+    let path = fixture_path("complex.cif");
+    let doc = Document::from_file(&path).unwrap();
+
+    // Find a block with frames
+    for block in &doc.blocks {
+        if !block.frames.is_empty() {
+            for frame in &block.frames {
+                // Each frame should have a valid span
+                assert!(
+                    frame.span.start_line >= 1,
+                    "Frame should have valid start line"
+                );
+                assert!(
+                    frame.span.start_col >= 1,
+                    "Frame should have valid start column"
+                );
+            }
+        }
+    }
+}
+
+/// Test real-world CIF spans with CCDC paracetamol fixture
+#[test]
+fn test_ccdc_paracetamol_spans() {
+    let path = fixture_path("ccdc_paracetamol.cif");
+    let doc = Document::from_file(&path).unwrap();
+
+    // Document should span the file
+    assert_eq!(doc.span.start_line, 1);
+
+    // Block should have a proper span
+    let block = &doc.blocks[0];
+    assert!(block.span.start_line >= 1);
+
+    // Loop values should have spans on different lines
+    if !block.loops.is_empty() {
+        let loop_ = &block.loops[0];
+        if loop_.len() >= 2 {
+            let first_row_val = loop_.get(0, 0).unwrap();
+            let second_row_val = loop_.get(1, 0).unwrap();
+            // Different rows should have different spans
+            assert!(
+                first_row_val.span.start_line != second_row_val.span.start_line
+                    || first_row_val.span.start_col != second_row_val.span.start_col,
+                "Different row values should have different spans"
+            );
+        }
+    }
+}
+
+/// Test that parsed values have meaningful spans (not all zeros)
+#[test]
+fn test_value_spans_not_default() {
+    let path = fixture_path("simple.cif");
+    let doc = Document::from_file(&path).unwrap();
+    let block = &doc.blocks[0];
+
+    // At least some items should have non-default spans
+    let mut found_non_default = false;
+    for (_tag, value) in block.items.iter() {
+        if value.span.start_line > 0 && value.span.start_col > 0 {
+            found_non_default = true;
+            break;
+        }
+    }
+    assert!(
+        found_non_default,
+        "Should have at least one item with non-default span"
+    );
+}
+
+/// Test COD urea spans (large file with many loops)
+#[test]
+fn test_cod_urea_spans() {
+    let path = fixture_path("cod_urea.cif");
+    let doc = Document::from_file(&path).unwrap();
+
+    // Document covers the file
+    assert_eq!(doc.span.start_line, 1);
+
+    // Block exists with proper span
+    let block = &doc.blocks[0];
+    assert!(block.span.start_line >= 1);
+
+    // Verify loops have distinct spans
+    if block.loops.len() >= 2 {
+        let loop1 = &block.loops[0];
+        let loop2 = &block.loops[1];
+        assert_ne!(
+            (loop1.span.start_line, loop1.span.start_col),
+            (loop2.span.start_line, loop2.span.start_col),
+            "Different loops should have different spans"
+        );
     }
 }

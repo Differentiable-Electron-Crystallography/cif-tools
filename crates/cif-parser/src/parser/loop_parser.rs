@@ -1,8 +1,10 @@
 //! Loop structure parsing logic.
 
+#[cfg(test)]
+use crate::ast::Span;
 use crate::ast::{CifLoop, CifValue, CifVersion};
 use crate::error::CifError;
-use crate::parser::helpers::{extract_location, extract_text};
+use crate::parser::helpers::{extract_location, extract_span, extract_text};
 use crate::Rule;
 use pest::iterators::Pair;
 
@@ -24,6 +26,7 @@ use pest::iterators::Pair;
 ///
 /// Loops with tags but no values are valid (represents an empty table).
 pub(crate) fn parse_loop(pair: Pair<Rule>, version: CifVersion) -> Result<CifLoop, CifError> {
+    let loop_span = extract_span(&pair);
     let loop_location = extract_location(&pair);
     let inner: Vec<_> = pair.into_inner().collect();
 
@@ -39,8 +42,8 @@ pub(crate) fn parse_loop(pair: Pair<Rule>, version: CifVersion) -> Result<CifLoo
             .at_location(loop_location.0, loop_location.1));
     }
 
-    // Extract tag strings
-    let mut loop_ = CifLoop::new();
+    // Extract tag strings and create loop with span
+    let mut loop_ = CifLoop::with_span(loop_span);
     loop_.tags = tag_pairs.iter().map(|p| extract_text(p)).collect();
 
     // Collect values
@@ -144,10 +147,10 @@ mod tests {
         loop_.tags = vec!["_col1".to_string(), "_col2".to_string()];
 
         let values = vec![
-            CifValue::Text("v1".to_string()),
-            CifValue::Text("v2".to_string()),
-            CifValue::Text("v3".to_string()),
-            CifValue::Text("v4".to_string()),
+            CifValue::text("v1", Span::default()),
+            CifValue::text("v2", Span::default()),
+            CifValue::text("v3", Span::default()),
+            CifValue::text("v4", Span::default()),
         ];
 
         organize_loop_values(&mut loop_, values, (1, 1)).unwrap();
@@ -170,7 +173,7 @@ mod tests {
         let mut loop_ = CifLoop::new();
         loop_.tags = vec!["_col1".to_string(), "_col2".to_string()];
 
-        let values = vec![CifValue::Text("v1".to_string())]; // Only 1 value for 2 columns
+        let values = vec![CifValue::text("v1", Span::default())]; // Only 1 value for 2 columns
 
         let result = organize_loop_values(&mut loop_, values, (42, 5));
         assert!(result.is_err());

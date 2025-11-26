@@ -25,6 +25,7 @@ Classes:
     Loop: Tabular data structure
     Frame: Save frame container
     Value: Individual CIF value with type information
+    Span: Source location information for values
 
 Functions:
     parse(content): Parse CIF content from string
@@ -36,6 +37,7 @@ from ._cif_parser import (
     Document,
     Frame,
     Loop,
+    Span,
     Value,
     __version__,
     parse,
@@ -48,6 +50,7 @@ __all__ = [
     "Loop",
     "Frame",
     "Value",
+    "Span",
     "parse",
     "parse_file",
     "__version__",

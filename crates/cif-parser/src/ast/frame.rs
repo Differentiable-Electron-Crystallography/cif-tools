@@ -1,6 +1,7 @@
 //! Save frame structures in CIF files.
 
-use super::{CifLoop, CifValue};
+use super::{CifLoop, CifValue, Span};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Represents a save frame in a CIF file.
@@ -35,7 +36,7 @@ use std::collections::HashMap;
 ///
 /// Save frames are contained within data blocks and can contain the same
 /// types of content (data items and loops) but cannot contain other save frames.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CifFrame {
     /// Name of the save frame (from `save_name`)
     pub name: String,
@@ -43,15 +44,28 @@ pub struct CifFrame {
     pub items: HashMap<String, CifValue>,
     /// Loop structures within this frame
     pub loops: Vec<CifLoop>,
+    /// Source location of this frame in the CIF file
+    pub span: Span,
 }
 
 impl CifFrame {
-    /// Create a new empty frame with the given name
+    /// Create a new empty frame with the given name (uses default span)
     pub fn new(name: String) -> Self {
         CifFrame {
             name,
             items: HashMap::new(),
             loops: Vec::new(),
+            span: Span::default(),
+        }
+    }
+
+    /// Create a new empty frame with the given name and span
+    pub fn with_span(name: String, span: Span) -> Self {
+        CifFrame {
+            name,
+            items: HashMap::new(),
+            loops: Vec::new(),
+            span,
         }
     }
 

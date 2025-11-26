@@ -26,6 +26,65 @@ from typing import Iterator, overload
 __version__: str
 __author__: str
 
+class Span:
+    """
+    Source location information for a value in the CIF file.
+
+    Tracks where a value appears in the source, enabling LSP/IDE features
+    like go-to-definition, hover information, and syntax highlighting.
+
+    All line and column numbers are 1-indexed.
+    """
+
+    @property
+    def start_line(self) -> int:
+        """Starting line number (1-indexed)."""
+        ...
+
+    @property
+    def start_col(self) -> int:
+        """Starting column number (1-indexed)."""
+        ...
+
+    @property
+    def end_line(self) -> int:
+        """Ending line number (1-indexed)."""
+        ...
+
+    @property
+    def end_col(self) -> int:
+        """Ending column number (1-indexed)."""
+        ...
+
+    def contains(self, line: int, col: int) -> bool:
+        """
+        Check if a position is within this span.
+
+        Args:
+            line: Line number (1-indexed)
+            col: Column number (1-indexed)
+
+        Returns:
+            True if the position is within the span.
+        """
+        ...
+
+    def __str__(self) -> str:
+        """String representation (e.g., '1:5-3:10')."""
+        ...
+
+    def __repr__(self) -> str:
+        """Debug representation."""
+        ...
+
+    def __eq__(self, other: object) -> bool:
+        """Check equality with another Span."""
+        ...
+
+    def __hash__(self) -> int:
+        """Hash for use in sets/dicts."""
+        ...
+
 class Value:
     """
     Represents a single value in a CIF file with runtime type detection.
@@ -92,6 +151,19 @@ class Value:
 
         Returns:
             One of: "Text", "Numeric", "Unknown", "NotApplicable"
+        """
+        ...
+
+    @property
+    def span(self) -> Span:
+        """
+        Get the source location span for this value.
+
+        Returns the position in the source CIF file where this value appears.
+        Useful for LSP/IDE features, error reporting, and syntax highlighting.
+
+        Returns:
+            Span object with start/end line and column information.
         """
         ...
 

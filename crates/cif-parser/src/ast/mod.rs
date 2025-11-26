@@ -28,10 +28,12 @@ pub mod block;
 pub mod document;
 pub mod frame;
 pub mod loop_struct;
+pub mod span;
 pub mod value;
 
 pub use block::CifBlock;
 pub use document::{CifDocument, CifVersion};
 pub use frame::CifFrame;
 pub use loop_struct::CifLoop;
-pub use value::CifValue;
+pub use span::Span;
+pub use value::{CifValue, CifValueKind};

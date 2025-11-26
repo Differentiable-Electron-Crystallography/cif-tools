@@ -88,17 +88,39 @@ parse_dataitem(pair: Pair<Rule>) -> Result<(String, CifValue), CifError>
 
 ### Value Parsing
 
-**File:** `src/ast/value.rs:73-86`
+**File:** `src/ast/value.rs`
 
 ```rust
 CifValue::parse_value(s: &str) -> CifValue
+CifValue::parse_value_with_span(s: &str, span: Span) -> CifValue
+```
+
+**Value Structure:**
+
+`CifValue` uses a wrapper struct pattern for clean separation of content and location:
+
+```rust
+pub struct CifValue {
+    pub kind: CifValueKind,  // The actual value variant
+    pub span: Span,          // Source location (line/column)
+}
+
+pub enum CifValueKind {
+    Text(String),
+    Numeric(f64),
+    NumericWithUncertainty { value: f64, uncertainty: f64 },
+    Unknown,
+    NotApplicable,
+    List(Vec<CifValue>),      // CIF 2.0 only
+    Table(HashMap<String, CifValue>),  // CIF 2.0 only
+}
 ```
 
 **Systematic value type detection:**
 
 1. **Check special values:**
-   - `"?"` → `CifValue::Unknown`
-   - `"."` → `CifValue::NotApplicable`
+   - `"?"` → `CifValueKind::Unknown`
+   - `"."` → `CifValueKind::NotApplicable`
 
 2. **Extract content** (remove delimiters):
    - Single/double quotes: `'text'` → `text`
@@ -106,8 +128,29 @@ CifValue::parse_value(s: &str) -> CifValue
    - Unquoted: kept as-is
 
 3. **Type detection:**
-   - Try `parse::<f64>()` → success = `CifValue::Numeric(f64)`
-   - Fall back → `CifValue::Text(String)`
+   - Try `parse::<f64>()` → success = `CifValueKind::Numeric(f64)`
+   - Try uncertainty notation (e.g., `7.470(6)`) → `CifValueKind::NumericWithUncertainty`
+   - Fall back → `CifValueKind::Text(String)`
+
+**Constructor Methods:**
+
+All constructors require a `Span` parameter:
+```rust
+CifValue::text("hello", span)
+CifValue::numeric(42.0, span)
+CifValue::unknown(span)
+CifValue::list(items, span)  // CIF 2.0
+```
+
+**Accessor Methods:**
+
+Helper methods access the inner kind:
+```rust
+value.as_string()    // Option<&str>
+value.as_numeric()   // Option<f64>
+value.is_unknown()   // bool
+value.is_list()      // bool
+```
 
 ### Loop Parsing
 

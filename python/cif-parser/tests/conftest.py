@@ -52,3 +52,9 @@ def cif2_lists_cif(fixtures_dir):
 def cif2_tables_cif(fixtures_dir):
     """Return path to cif2_tables.cif test file."""
     return fixtures_dir / "cif2_tables.cif"
+
+
+@pytest.fixture
+def cif2_comprehensive_cif(fixtures_dir):
+    """Return path to cif2_comprehensive.cif test file with all CIF 2.0 features."""
+    return fixtures_dir / "cif2_comprehensive.cif"

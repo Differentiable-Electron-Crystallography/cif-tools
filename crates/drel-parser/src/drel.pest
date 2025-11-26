@@ -1,0 +1,237 @@
+// ================================================================================
+// dREL Grammar in Pest PEG Format
+// Based on COMCIFS/dREL annotated-grammar.rst
+// Reference: Spadaccini et al. "dREL: A Relational Expression Language for
+//            Dictionary Methods" J. Chem. Inf. Model. 2012
+// ================================================================================
+
+// === WHITESPACE AND COMMENTS ===
+// Implicit whitespace handling (consumed automatically between tokens)
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
+COMMENT = _{ "#" ~ (!NEWLINE ~ ANY)* }
+NEWLINE = _{ "\r\n" | "\r" | "\n" }
+
+// === LITERALS ===
+
+// Integer literals (decimal, hex, octal, binary)
+integer = @{
+    hex_integer | octal_integer | binary_integer | decimal_integer
+}
+decimal_integer = @{ ASCII_DIGIT+ }
+hex_integer = @{ "0" ~ ("x" | "X") ~ ASCII_HEX_DIGIT+ }
+octal_integer = @{ "0" ~ ("o" | "O") ~ ('0'..'7')+ }
+binary_integer = @{ "0" ~ ("b" | "B") ~ ('0'..'1')+ }
+
+// Floating-point literals
+float = @{
+    ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* ~ exponent? |
+    ASCII_DIGIT* ~ "." ~ ASCII_DIGIT+ ~ exponent? |
+    ASCII_DIGIT+ ~ exponent
+}
+exponent = @{ ("e" | "E") ~ ("+" | "-")? ~ ASCII_DIGIT+ }
+
+// Imaginary literals (e.g., 3.14j)
+imaginary = @{ (float | decimal_integer) ~ ("j" | "J") }
+
+// String literals
+string = @{
+    triple_quoted_string | single_quoted_string
+}
+triple_quoted_string = @{
+    "'''" ~ (!"'''" ~ ANY)* ~ "'''" |
+    "\"\"\"" ~ (!"\"\"\"" ~ ANY)* ~ "\"\"\""
+}
+single_quoted_string = @{
+    "'" ~ (!"'" ~ !"\\n" ~ ANY)* ~ "'" |
+    "\"" ~ (!"\"" ~ !"\\n" ~ ANY)* ~ "\""
+}
+
+// Special literals
+null_literal = { ^"Null" }
+missing_literal = { ^"Missing" }
+
+// Combined literal rule
+literal = {
+    imaginary |
+    float |
+    integer |
+    string |
+    null_literal |
+    missing_literal
+}
+
+// === IDENTIFIERS ===
+
+// Simple identifier (variable name, function name)
+identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+
+// CIF data name reference (e.g., _cell.length_a)
+// Format: _category.object
+data_name = @{ "_" ~ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* ~ "." ~ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+
+// Category reference (just an identifier in dREL context)
+category_ref = @{ identifier }
+
+// === OPERATORS ===
+
+// Arithmetic operators (by precedence, highest first)
+power_op = { "**" }
+mul_op = { "*" | "/" | "^" }  // ^ is cross product for vectors
+add_op = { "+" | "-" }
+unary_op = { "+" | "-" }
+
+// Comparison operators
+comp_op = {
+    "==" | "!=" | ">=" | "<=" | ">" | "<" |
+    ^"not" ~ ^"in" |
+    ^"in"
+}
+
+// Logical operators
+not_op = { ^"NOT" | "!" }
+and_op = { ^"AND" | "&&" }
+or_op = { ^"OR" | "||" }
+
+// Assignment operators
+assign_op = { "++=" | "--=" | "+=" | "-=" | "*=" | "=" }
+
+// === EXPRESSIONS ===
+// Precedence (lowest to highest):
+// 1. or
+// 2. and
+// 3. not
+// 4. comparison
+// 5. addition/subtraction
+// 6. multiplication/division/cross
+// 7. power
+// 8. unary
+// 9. postfix (subscription, attribute, call)
+// 10. primary
+
+expression = { or_expr }
+
+or_expr = { and_expr ~ (or_op ~ and_expr)* }
+and_expr = { not_expr ~ (and_op ~ not_expr)* }
+not_expr = { not_op? ~ comparison }
+comparison = { add_expr ~ (comp_op ~ add_expr)? }
+add_expr = { mul_expr ~ (add_op ~ mul_expr)* }
+mul_expr = { power_expr ~ (mul_op ~ power_expr)* }
+power_expr = { unary_expr ~ (power_op ~ unary_expr)* }
+unary_expr = { unary_op? ~ postfix_expr }
+
+// Postfix expressions: subscription, attribute reference, function call
+postfix_expr = { primary ~ (subscription | attribute_ref | call)* }
+
+// Subscription: list[0], matrix[i,j], category[.key=value]
+subscription = { "[" ~ subscript_list ~ "]" }
+subscript_list = { subscript ~ ("," ~ subscript)* }
+subscript = {
+    slice |
+    key_match |
+    expression
+}
+
+// Slice: list[1:3], list[::2], list[start:stop:step]
+slice = { expression? ~ ":" ~ expression? ~ (":" ~ expression?)? }
+
+// Key match for category lookup: category[.key = value]
+key_match = { "." ~ identifier ~ "=" ~ expression }
+
+// Attribute reference: obj.attr
+attribute_ref = { "." ~ identifier }
+
+// Function call: func(args)
+call = { "(" ~ arg_list? ~ ")" }
+arg_list = { expression ~ ("," ~ expression)* }
+
+// Primary expressions
+// NOTE: literal must come before identifier so that Null/Missing are not parsed as identifiers
+primary = {
+    "(" ~ expression ~ ")" |
+    list_display |
+    table_display |
+    data_name |
+    literal |
+    identifier
+}
+
+// List literal: [1, 2, 3]
+list_display = { "[" ~ (expression ~ ("," ~ expression)*)? ~ "]" }
+
+// Table literal: {"key": value, "key2": value2}
+table_display = { "{" ~ (table_entry ~ ("," ~ table_entry)*)? ~ "}" }
+table_entry = { string ~ ":" ~ expression }
+
+// === STATEMENTS ===
+
+statement = {
+    if_stmt |
+    for_stmt |
+    loop_stmt |
+    do_stmt |
+    repeat_stmt |
+    with_stmt |
+    function_def |
+    break_stmt |
+    next_stmt |
+    assignment |
+    expression_stmt
+}
+
+// Compound statement (block): { stmt1; stmt2; ... }
+compound_stmt = { "{" ~ statement* ~ "}" }
+
+// If/ElseIf/Else statement
+if_stmt = {
+    ^"If" ~ "(" ~ expression ~ ")" ~ compound_stmt ~
+    (^"ElseIf" ~ "(" ~ expression ~ ")" ~ compound_stmt)* ~
+    (^"Else" ~ compound_stmt)?
+}
+
+// For loop: For x in list { ... }
+for_stmt = { ^"For" ~ identifier ~ ^"in" ~ expression ~ compound_stmt }
+
+// Loop over category packets (CIF-specific)
+// Loop var As category : index Where condition { ... }
+loop_stmt = {
+    ^"Loop" ~ identifier ~ ^"As" ~ category_ref ~
+    (":" ~ identifier)? ~
+    (^"Where" ~ expression)? ~
+    compound_stmt
+}
+
+// Do loop (numeric range): Do i = 1, 10, 2 { ... }
+do_stmt = {
+    ^"Do" ~ identifier ~ "=" ~ expression ~ "," ~ expression ~
+    ("," ~ expression)? ~ compound_stmt
+}
+
+// Repeat loop (until Break)
+repeat_stmt = { ^"Repeat" ~ compound_stmt }
+
+// With statement - two forms:
+// 1. With x = expr { body } - value binding with explicit body
+// 2. With alias As category [body] - category aliasing (body is optional, may contain rest of method)
+with_stmt = {
+    ^"With" ~ identifier ~ ^"As" ~ category_ref ~ compound_stmt |
+    ^"With" ~ identifier ~ ^"As" ~ category_ref |
+    ^"With" ~ identifier ~ "=" ~ expression ~ compound_stmt
+}
+
+// Function definition: Function name(params) { ... }
+function_def = { ^"Function" ~ identifier ~ "(" ~ param_list? ~ ")" ~ compound_stmt }
+param_list = { identifier ~ ("," ~ identifier)* }
+
+// Loop control
+break_stmt = { ^"Break" }
+next_stmt = { ^"Next" }
+
+// Assignment: target op value
+assignment = { postfix_expr ~ assign_op ~ expression }
+
+// Expression as statement
+expression_stmt = { expression }
+
+// === PROGRAM ===
+// A program is a sequence of statements
+program = { SOI ~ statement* ~ EOI }

@@ -412,4 +412,475 @@ describe('Integration Tests', () => {
       assert.strictEqual(table.get('error').value_type, 'Unknown');
     });
   });
+
+  // =============================================================================
+  // Span Tests - Source location tracking for LSP/IDE features
+  // =============================================================================
+
+  describe('Span Tests', () => {
+    describe('simple.cif spans', () => {
+      it('should have span with all required properties', () => {
+        const content = loadFixture('simple.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        const value = block.get_item('_cell_length_a');
+        const span = value.span;
+
+        // All properties should be accessible (camelCase in JS)
+        assert.ok(typeof span.startLine === 'number');
+        assert.ok(typeof span.startCol === 'number');
+        assert.ok(typeof span.endLine === 'number');
+        assert.ok(typeof span.endCol === 'number');
+
+        // Lines are 1-indexed and should be positive
+        assert.ok(span.startLine >= 1);
+        assert.ok(span.endLine >= 1);
+        assert.ok(span.startCol >= 1);
+        assert.ok(span.endCol >= 1);
+      });
+
+      it('should have correct span for numeric value', () => {
+        const content = loadFixture('simple.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        // Line 2: _cell_length_a    10.0
+        const value = block.get_item('_cell_length_a');
+        const span = value.span;
+
+        assert.strictEqual(span.startLine, 2);
+        assert.strictEqual(span.endLine, 2);
+        // Value "10.0" should span 4 characters (endCol is exclusive)
+        assert.strictEqual(span.endCol - span.startCol, 4);
+      });
+
+      it('should have correct span for text value', () => {
+        const content = loadFixture('simple.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        // Line 8: _title 'Simple Test Structure'
+        const value = block.get_item('_title');
+        const span = value.span;
+
+        assert.strictEqual(span.startLine, 8);
+        assert.strictEqual(span.endLine, 8);
+      });
+
+      it('should have correct span for unknown value (?)', () => {
+        const content = loadFixture('simple.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        // Line 9: _temperature_kelvin ?
+        const value = block.get_item('_temperature_kelvin');
+        const span = value.span;
+
+        assert.strictEqual(span.startLine, 9);
+        assert.strictEqual(span.endLine, 9);
+        // Single character '?' (endCol is exclusive)
+        assert.strictEqual(span.endCol - span.startCol, 1);
+      });
+
+      it('should have correct span for not applicable value (.)', () => {
+        const content = loadFixture('simple.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        // Line 10: _pressure .
+        const value = block.get_item('_pressure');
+        const span = value.span;
+
+        assert.strictEqual(span.startLine, 10);
+        assert.strictEqual(span.endLine, 10);
+        // Single character '.' (endCol is exclusive)
+        assert.strictEqual(span.endCol - span.startCol, 1);
+      });
+
+      it('should support contains() method for hit testing', () => {
+        const content = loadFixture('simple.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        const value = block.get_item('_cell_length_a');
+        const span = value.span;
+
+        // Position inside the span should return true
+        assert.ok(span.contains(span.startLine, span.startCol));
+        assert.ok(span.contains(span.endLine, span.endCol));
+
+        // Position outside the span should return false
+        assert.ok(!span.contains(span.startLine - 1, span.startCol));
+        assert.ok(!span.contains(span.startLine, span.startCol - 1));
+        assert.ok(!span.contains(span.endLine + 1, span.endCol));
+        assert.ok(!span.contains(span.endLine, span.endCol + 1));
+      });
+    });
+
+    describe('loops.cif spans', () => {
+      it('should have correct spans for loop values', () => {
+        const content = loadFixture('loops.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        const atomLoop = block.find_loop('_atom_site_label');
+
+        // First row values should be on line 11
+        const firstLabel = atomLoop.get_value_by_tag(0, '_atom_site_label');
+        assert.strictEqual(firstLabel.span.startLine, 11);
+
+        // Second row values should be on line 12
+        const secondLabel = atomLoop.get_value_by_tag(1, '_atom_site_label');
+        assert.strictEqual(secondLabel.span.startLine, 12);
+
+        // Different columns on same row should have same line but different columns
+        const firstX = atomLoop.get_value_by_tag(0, '_atom_site_fract_x');
+        assert.strictEqual(firstX.span.startLine, firstLabel.span.startLine);
+        assert.ok(firstX.span.startCol !== firstLabel.span.startCol);
+      });
+
+      it('should have distinct spans for loop column values', () => {
+        const content = loadFixture('loops.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        const atomLoop = block.find_loop('_atom_site_label');
+        const labels = atomLoop.get_column('_atom_site_label');
+
+        // Each label should have a different line
+        const lines = labels.map(label => label.span.startLine);
+        const uniqueLines = new Set(lines);
+        assert.strictEqual(uniqueLines.size, lines.length); // All unique lines
+
+        // Lines should be consecutive (11, 12, 13, 14, 15)
+        assert.deepStrictEqual(lines, [11, 12, 13, 14, 15]);
+      });
+    });
+
+    describe('complex.cif spans', () => {
+      it('should have spans across multiple data blocks', () => {
+        const content = loadFixture('complex.cif');
+        const doc = parse(content);
+
+        const block1 = doc.get_block(0);
+        const block2 = doc.get_block(1);
+
+        // Values in block2 should have higher line numbers than block1
+        // Both blocks have _entry_id
+        const entry1 = block1.get_item('_entry_id');
+        const entry2 = block2.get_item('_entry_id');
+
+        assert.ok(entry2.span.startLine > entry1.span.startLine);
+      });
+    });
+
+    describe('pycifrw_xanthine.cif spans', () => {
+      it('should have correct span for uncertainty values', () => {
+        const content = loadFixture('pycifrw_xanthine.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        // Value with uncertainty like 10.01(11) should have span covering the whole notation
+        const cellA = block.get_item('_cell_length_a');
+        const span = cellA.span;
+
+        assert.ok(span.startLine >= 1);
+        assert.ok(span.endCol > span.startCol); // Should span multiple characters
+      });
+    });
+
+    describe('CIF 2.0 spans', () => {
+      it('should have spans for list values', () => {
+        const content = loadFixture('cif2_lists.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        // The list itself should have a span
+        const numericList = block.get_item('_numeric_list');
+        assert.ok(numericList.span.startLine >= 1);
+
+        // Nested list should also have spans
+        const nestedList = block.get_item('_nested_list');
+        assert.ok(nestedList.span.startLine >= 1);
+      });
+
+      it('should have spans for table values', () => {
+        const content = loadFixture('cif2_tables.cif');
+        const doc = parse(content);
+        const block = doc.first_block();
+
+        // The table itself should have a span
+        const simpleTable = block.get_item('_simple_table');
+        assert.ok(simpleTable.span.startLine >= 1);
+
+        // Coordinates table should have a span
+        const coords = block.get_item('_coordinates');
+        assert.ok(coords.span.startLine >= 1);
+      });
+    });
+  });
+
+  // =============================================================================
+  // cif2_comprehensive.cif - Comprehensive CIF 2.0 feature tests
+  // =============================================================================
+
+  describe('cif2_comprehensive.cif', () => {
+    it('should parse cif2_comprehensive.cif', () => {
+      const content = loadFixture('cif2_comprehensive.cif');
+      const doc = parse(content);
+
+      assert.strictEqual(doc.blockCount, 1);
+      assert.ok(doc.isCif2());
+      assert.strictEqual(doc.first_block().name, 'cif2_comprehensive');
+    });
+
+    it('should parse list with text values', () => {
+      const content = loadFixture('cif2_comprehensive.cif');
+      const doc = parse(content);
+      const block = doc.first_block();
+
+      const value = block.get_item('_list_text');
+      assert.ok(value.is_list());
+      const list = value.list_value;
+      assert.strictEqual(list.length, 3);
+      assert.strictEqual(list[0].text_value, 'alpha');
+      assert.strictEqual(list[1].text_value, 'beta');
+      assert.strictEqual(list[2].text_value, 'gamma');
+    });
+
+    it('should parse list with mixed types', () => {
+      const content = loadFixture('cif2_comprehensive.cif');
+      const doc = parse(content);
+      const block = doc.first_block();
+
+      const value = block.get_item('_list_mixed_types');
+      assert.ok(value.is_list());
+      const list = value.list_value;
+      assert.strictEqual(list.length, 4);
+      assert.strictEqual(list[0].text_value, 'label1');
+      assert.strictEqual(list[1].numeric_value, 1.5);
+      assert.strictEqual(list[2].text_value, 'label2');
+      assert.strictEqual(list[3].numeric_value, 2.5);
+    });
+
+    it('should parse deeply nested lists', () => {
+      const content = loadFixture('cif2_comprehensive.cif');
+      const doc = parse(content);
+      const block = doc.first_block();
+
+      const value = block.get_item('_list_deeply_nested');
+      assert.ok(value.is_list());
+      const outer = value.list_value;
+      assert.strictEqual(outer.length, 2);
+      // First level: [[1 2] [3 4]] - nested values from serde are plain JS objects
+      assert.strictEqual(outer[0].value_type, 'List');
+      assert.strictEqual(outer[0].list_value.length, 2);
+      // Second level: [1 2]
+      assert.strictEqual(outer[0].list_value[0].list_value[0].numeric_value, 1.0);
+    });
+
+    it('should parse table with text values', () => {
+      const content = loadFixture('cif2_comprehensive.cif');
+      const doc = parse(content);
+      const block = doc.first_block();
+
+      const value = block.get_item('_table_text');
+      assert.ok(value.is_table());
+      const table = value.table_value;
+      assert.ok(table instanceof Map);
+      assert.strictEqual(table.get('name').text_value, 'test');
+      assert.strictEqual(table.get('type').text_value, 'example');
+    });
+
+    it('should parse nested tables', () => {
+      const content = loadFixture('cif2_comprehensive.cif');
+      const doc = parse(content);
+      const block = doc.first_block();
+
+      const value = block.get_item('_table_nested');
+      assert.ok(value.is_table());
+      const table = value.table_value;
+      const outer = table.get('outer');
+      // Nested values from serde are plain JS objects
+      assert.strictEqual(outer.value_type, 'Table');
+      assert.strictEqual(outer.table_value.get('inner').numeric_value, 1.0);
+      assert.strictEqual(outer.table_value.get('value').numeric_value, 2.0);
+    });
+
+    it('should parse table containing a list', () => {
+      const content = loadFixture('cif2_comprehensive.cif');
+      const doc = parse(content);
+      const block = doc.first_block();
+
+      const value = block.get_item('_table_with_list');
+      assert.ok(value.is_table());
+      const table = value.table_value;
+      assert.strictEqual(table.get('name').text_value, 'vector');
+      const components = table.get('components');
+      // Nested values from serde are plain JS objects with value_type property
+      assert.strictEqual(components.value_type, 'List');
+      assert.strictEqual(components.list_value.length, 3);
+    });
+
+    it('should parse list of tables', () => {
+      const content = loadFixture('cif2_comprehensive.cif');
+      const doc = parse(content);
+      const block = doc.first_block();
+
+      const value = block.get_item('_list_of_tables');
+      assert.ok(value.is_list());
+      const list = value.list_value;
+      assert.strictEqual(list.length, 2);
+      // Nested values from serde are plain JS objects
+      assert.strictEqual(list[0].value_type, 'Table');
+      assert.strictEqual(list[0].table_value.get('x').numeric_value, 1.0);
+      assert.strictEqual(list[0].table_value.get('y').numeric_value, 2.0);
+    });
+
+    it('should parse complex nested structure', () => {
+      const content = loadFixture('cif2_comprehensive.cif');
+      const doc = parse(content);
+      const block = doc.first_block();
+
+      const value = block.get_item('_complex_nested');
+      assert.ok(value.is_table());
+      const table = value.table_value;
+      assert.strictEqual(table.get('count').numeric_value, 2.0);
+      const points = table.get('points');
+      // Nested values from serde are plain JS objects
+      assert.strictEqual(points.value_type, 'List');
+      assert.strictEqual(points.list_value.length, 2);
+    });
+
+    it('should parse triple-quoted strings', () => {
+      const content = loadFixture('cif2_comprehensive.cif');
+      const doc = parse(content);
+      const block = doc.first_block();
+
+      const value = block.get_item('_triple_single_line');
+      assert.strictEqual(value.text_value, 'This is a triple-quoted string');
+
+      const value2 = block.get_item('_triple_double_line');
+      assert.strictEqual(value2.text_value, 'This is also triple-quoted');
+
+      const value3 = block.get_item('_triple_with_quotes');
+      assert.strictEqual(value3.text_value, "String with 'embedded' quotes");
+
+      const value4 = block.get_item('_triple_with_double_quotes');
+      assert.strictEqual(value4.text_value, 'String with "embedded" quotes');
+    });
+
+    it('should parse multi-line triple-quoted string', () => {
+      const content = loadFixture('cif2_comprehensive.cif');
+      const doc = parse(content);
+      const block = doc.first_block();
+
+      const value = block.get_item('_triple_multiline');
+      const text = value.text_value;
+      assert.ok(text.includes('Line one'));
+      assert.ok(text.includes('Line two'));
+      assert.ok(text.includes('Line three'));
+    });
+
+    it('should parse list with triple-quoted strings', () => {
+      const content = loadFixture('cif2_comprehensive.cif');
+      const doc = parse(content);
+      const block = doc.first_block();
+
+      const value = block.get_item('_list_with_triple');
+      assert.ok(value.is_list());
+      const list = value.list_value;
+      assert.strictEqual(list.length, 2);
+      assert.strictEqual(list[0].text_value, 'first');
+      assert.strictEqual(list[1].text_value, 'second');
+    });
+
+    it('should parse Unicode values', () => {
+      const content = loadFixture('cif2_comprehensive.cif');
+      const doc = parse(content);
+      const block = doc.first_block();
+
+      // Greek letters
+      const greek = block.get_item('_unicode_greek');
+      assert.strictEqual(greek.text_value, 'αβγδεζηθ');
+
+      // Mathematical symbols
+      const math = block.get_item('_unicode_math');
+      assert.strictEqual(math.text_value, '∑∏∫∂∇');
+
+      // Angstrom and degree symbols
+      const units = block.get_item('_unicode_units');
+      assert.ok(units.text_value.includes('Å'));
+      assert.ok(units.text_value.includes('°'));
+
+      // Accented characters
+      const accents = block.get_item('_unicode_accents');
+      assert.ok(accents.text_value.includes('Müller'));
+      assert.ok(accents.text_value.includes('Böhm'));
+      assert.ok(accents.text_value.includes('Señor'));
+    });
+
+    it('should parse Unicode in lists', () => {
+      const content = loadFixture('cif2_comprehensive.cif');
+      const doc = parse(content);
+      const block = doc.first_block();
+
+      const value = block.get_item('_list_unicode');
+      assert.ok(value.is_list());
+      const list = value.list_value;
+      assert.strictEqual(list[0].text_value, 'α');
+      assert.strictEqual(list[1].text_value, 'β');
+      assert.strictEqual(list[2].text_value, 'γ');
+    });
+
+    it('should parse Unicode in table keys', () => {
+      const content = loadFixture('cif2_comprehensive.cif');
+      const doc = parse(content);
+      const block = doc.first_block();
+
+      const value = block.get_item('_table_unicode');
+      assert.ok(value.is_table());
+      const table = value.table_value;
+      assert.strictEqual(table.get('α').numeric_value, 1.0);
+      assert.strictEqual(table.get('β').numeric_value, 2.0);
+      assert.strictEqual(table.get('γ').numeric_value, 3.0);
+    });
+
+    it('should parse loop with CIF 2.0 values', () => {
+      const content = loadFixture('cif2_comprehensive.cif');
+      const doc = parse(content);
+      const block = doc.first_block();
+
+      assert.strictEqual(block.numLoops, 1);
+      const loop = block.find_loop('_atom_label');
+      assert.strictEqual(loop.numRows, 4);
+
+      // Check first row
+      const label = loop.get_value_by_tag(0, '_atom_label');
+      assert.strictEqual(label.text_value, 'C1');
+
+      const coords = loop.get_value_by_tag(0, '_atom_coords');
+      assert.ok(coords.is_list());
+      const coordList = coords.list_value;
+      assert.ok(Math.abs(coordList[0].numeric_value - 0.1) < 0.01);
+      assert.ok(Math.abs(coordList[1].numeric_value - 0.2) < 0.01);
+      assert.ok(Math.abs(coordList[2].numeric_value - 0.3) < 0.01);
+
+      const props = loop.get_value_by_tag(0, '_atom_properties');
+      assert.ok(props.is_table());
+      const propsTable = props.table_value;
+      assert.strictEqual(propsTable.get('element').text_value, 'C');
+      assert.strictEqual(propsTable.get('mass').numeric_value, 12.0);
+
+      // Check third row (nitrogen)
+      const label3 = loop.get_value_by_tag(2, '_atom_label');
+      assert.strictEqual(label3.text_value, 'N1');
+
+      const props3 = loop.get_value_by_tag(2, '_atom_properties');
+      const propsTable3 = props3.table_value;
+      assert.strictEqual(propsTable3.get('element').text_value, 'N');
+      assert.strictEqual(propsTable3.get('mass').numeric_value, 14.0);
+    });
+  });
 });

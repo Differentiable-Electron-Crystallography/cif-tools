@@ -188,6 +188,26 @@ fn test_doubled_quote_escaping() {
 }
 
 #[test]
+fn test_quoted_string_before_list_close() {
+    // CIF 2.0: Quoted strings can end before list delimiter ]
+    // This enables syntax like ['alpha' 'beta' 'gamma']
+    assert_parse!(Rule::singlequoted, "'text']");
+    assert_parse!(Rule::doublequoted, "\"text\"]");
+    assert_parse!(Rule::quoted_string, "'alpha']");
+    assert_parse!(Rule::quoted_string, "\"beta\"]");
+}
+
+#[test]
+fn test_quoted_string_before_table_close() {
+    // CIF 2.0: Quoted strings can end before table delimiter }
+    // This enables syntax like {'key':'value'}
+    assert_parse!(Rule::singlequoted, "'text'}");
+    assert_parse!(Rule::doublequoted, "\"text\"}");
+    assert_parse!(Rule::quoted_string, "'value'}");
+    assert_parse!(Rule::quoted_string, "\"value\"}");
+}
+
+#[test]
 fn test_text_field() {
     // Paragraph 21: Text fields
     // Note: text_delim = { line_term ~ ";" } - semicolon must be at START of line

@@ -1,7 +1,8 @@
 //! CIF document (root container) structures.
 
-use super::CifBlock;
+use super::{CifBlock, Span};
 use crate::error::CifError;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
@@ -36,7 +37,7 @@ use std::path::Path;
 /// let doc = Document::parse(cif1).unwrap();
 /// assert_eq!(doc.version, CifVersion::V1_1);
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CifVersion {
     /// CIF 1.1 specification
     ///
@@ -115,7 +116,7 @@ impl std::fmt::Display for CifVersion {
 /// ```
 ///
 /// Each structure gets its own [`CifBlock`] with independent data.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CifDocument {
     /// All data blocks in this document
     pub blocks: Vec<CifBlock>,
@@ -125,6 +126,9 @@ pub struct CifDocument {
     /// Defaults to CIF 1.1 for backward compatibility.
     /// Set to CIF 2.0 if the file contains the magic comment `#\#CIF_2.0`.
     pub version: CifVersion,
+
+    /// Source location spanning the entire document
+    pub span: Span,
 }
 
 impl Default for CifDocument {
@@ -134,19 +138,30 @@ impl Default for CifDocument {
 }
 
 impl CifDocument {
-    /// Create a new empty document (defaults to CIF 1.1)
+    /// Create a new empty document (defaults to CIF 1.1 with default span)
     pub fn new() -> Self {
         CifDocument {
             blocks: Vec::new(),
             version: CifVersion::default(),
+            span: Span::default(),
         }
     }
 
-    /// Create a new empty document with a specific CIF version
+    /// Create a new empty document with a specific CIF version (uses default span)
     pub fn new_with_version(version: CifVersion) -> Self {
         CifDocument {
             blocks: Vec::new(),
             version,
+            span: Span::default(),
+        }
+    }
+
+    /// Create a new empty document with a specific version and span
+    pub fn with_span(version: CifVersion, span: Span) -> Self {
+        CifDocument {
+            blocks: Vec::new(),
+            version,
+            span,
         }
     }
 

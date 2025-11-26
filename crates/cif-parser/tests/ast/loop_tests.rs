@@ -174,15 +174,8 @@ C ? .
     );
 
     // Row with special values
-    use cif_parser::CifValue;
-    assert!(matches!(
-        loop_.get_by_tag(2, "_number").unwrap(),
-        CifValue::Unknown
-    ));
-    assert!(matches!(
-        loop_.get_by_tag(2, "_text").unwrap(),
-        CifValue::NotApplicable
-    ));
+    assert!(loop_.get_by_tag(2, "_number").unwrap().is_unknown());
+    assert!(loop_.get_by_tag(2, "_text").unwrap().is_not_applicable());
 }
 
 // ========================================================================

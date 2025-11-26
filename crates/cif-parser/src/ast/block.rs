@@ -1,6 +1,7 @@
 //! Data block structures in CIF files.
 
-use super::{CifFrame, CifLoop, CifValue};
+use super::{CifFrame, CifLoop, CifValue, Span};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Represents a data block in a CIF file.
@@ -54,7 +55,7 @@ use std::collections::HashMap;
 /// // Get all loop tags
 /// let all_tags = block.get_loop_tags();
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CifBlock {
     /// Block name (extracted from `data_name` header)
     pub name: String,
@@ -64,16 +65,30 @@ pub struct CifBlock {
     pub loops: Vec<CifLoop>,
     /// Save frames (named sub-containers) in this block
     pub frames: Vec<CifFrame>,
+    /// Source location of this block in the CIF file
+    pub span: Span,
 }
 
 impl CifBlock {
-    /// Create a new empty block with the given name
+    /// Create a new empty block with the given name (uses default span)
     pub fn new(name: String) -> Self {
         CifBlock {
             name,
             items: HashMap::new(),
             loops: Vec::new(),
             frames: Vec::new(),
+            span: Span::default(),
+        }
+    }
+
+    /// Create a new empty block with the given name and span
+    pub fn with_span(name: String, span: Span) -> Self {
+        CifBlock {
+            name,
+            items: HashMap::new(),
+            loops: Vec::new(),
+            frames: Vec::new(),
+            span,
         }
     }
 
