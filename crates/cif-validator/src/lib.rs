@@ -51,6 +51,9 @@ mod validator;
 #[cfg(feature = "python")]
 pub mod python;
 
+#[cfg(feature = "wasm")]
+pub mod wasm;
+
 // Re-exports
 pub use dictionary::{
     Category, CategoryClass, ContainerType, ContentType, DataItem, Dictionary, DictionaryMetadata,

@@ -106,10 +106,14 @@ dependencies = [
  "cif-parser",
  "criterion",
  "drel-parser",
+ "js-sys",
  "pyo3",
  "serde",
+ "serde-wasm-bindgen",
  "serde_json",
  "thiserror 1.0.69",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
