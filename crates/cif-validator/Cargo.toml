@@ -26,6 +26,13 @@ thiserror.workspace = true
 # Optional features
 pyo3 = { workspace = true, optional = true }
 
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "dictionary_loading"
+harness = false
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 

@@ -34,8 +34,12 @@ web-sys = { version = "0.3", features = ["console"] }
 # Python bindings
 pyo3 = { version = "0.26", features = ["extension-module"] }
 
+# Benchmarking
+criterion = { version = "0.5", features = ["html_reports"] }
+
 # Inter-crate dependencies (path-based)
 cif-parser = { path = "crates/cif-parser" }
+cif-validator = { path = "crates/cif-validator" }
 drel-parser = { path = "crates/drel-parser" }
 
 [workspace.lints.rust]
