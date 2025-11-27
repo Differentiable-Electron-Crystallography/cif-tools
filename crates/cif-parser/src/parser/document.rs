@@ -3,7 +3,7 @@
 use crate::ast::{CifDocument, CifVersion};
 use crate::error::CifError;
 use crate::parser::block::parse_datablock;
-use crate::parser::helpers::extract_span;
+use crate::parser::helpers::{clear_line_index, extract_span, init_line_index};
 use crate::{CIFParser, Rule};
 use pest::Parser;
 
@@ -55,6 +55,9 @@ pub fn parse_file(input: &str) -> Result<CifDocument, CifError> {
     // Detect version from magic comment
     let version = detect_version(input);
 
+    // Build line index for fast line/column lookups (O(n) once, O(log n) per lookup)
+    init_line_index(input);
+
     // Parse with PEST
     let pairs = CIFParser::parse(Rule::file, input)?;
 
@@ -68,6 +71,9 @@ pub fn parse_file(input: &str) -> Result<CifDocument, CifError> {
             parse_file_content(pair, &mut doc, version)?;
         }
     }
+
+    // Clean up line index
+    clear_line_index();
 
     Ok(doc)
 }

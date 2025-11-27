@@ -7,25 +7,32 @@
 //! - Dictionary loading and parsing (using cif-parser)
 //! - Multi-dictionary composition
 //! - Type system validation (Integer, Real, DateTime, etc.)
-//! - Constraint checking (enumerations, ranges)
-//! - dREL expression evaluation (future)
+//! - Constraint checking (enumerations, ranges, mandatory items)
+//! - Span preservation for IDE integration
+//! - ValidatedCIF type for definition lookup at source positions
 //!
 //! ## Usage
 //!
 //! ```rust,ignore
-//! use cif_parser::Document;
+//! use cif_parser::CifDocument;
 //! use cif_validator::{Validator, ValidationMode};
 //!
 //! // Parse CIF file
-//! let doc = Document::parse(cif_content)?;
+//! let doc = CifDocument::from_file("structure.cif")?;
 //!
-//! // Create validator with core dictionary
+//! // Create validator with dictionary
 //! let validator = Validator::new()
-//!     .with_core()?
+//!     .with_dictionary_file("cif_core.dic")?
 //!     .with_mode(ValidationMode::Strict);
 //!
 //! // Validate
 //! let result = validator.validate(&doc)?;
+//!
+//! if !result.is_valid {
+//!     for error in &result.errors {
+//!         println!("{}", error);
+//!     }
+//! }
 //! ```
 //!
 //! ## Architecture
@@ -35,144 +42,184 @@
 //! - **Optional complexity**: Users can parse without validating
 //! - **Performance**: Skip validation for performance-critical use cases
 //! - **Binary size**: Keep parser lightweight for WASM/Python
-//!
-//! ## Status
-//!
-//! 🚧 **Under Development** - This crate is in early development.
-//!
-//! Current capabilities:
-//! - ✅ Workspace structure established
-//! - ⚠️ Dictionary loading (planned)
-//! - ⚠️ Type validation (planned)
-//! - ⚠️ Constraint checking (planned)
-//! - ⚠️ dREL evaluation (planned)
+
+pub mod dictionary;
+pub mod error;
+pub mod validated;
+mod validator;
 
 #[cfg(feature = "python")]
 pub mod python;
 
-use cif_parser::Document;
+#[cfg(feature = "wasm")]
+pub mod wasm;
 
-/// Validation mode controlling strictness of validation
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ValidationMode {
-    /// Strict mode: All errors are fatal
-    Strict,
-    /// Lenient mode: Some errors become warnings
-    Lenient,
-    /// Pedantic mode: Include stylistic warnings
-    Pedantic,
-}
+// Re-exports
+pub use dictionary::{
+    Category, CategoryClass, ContainerType, ContentType, DataItem, Dictionary, DictionaryMetadata,
+    Purpose, RangeConstraint, Source, TypeInfo, ValueConstraints,
+};
+pub use error::{
+    DictionaryError, ErrorCategory, ValidationError, ValidationResult, ValidationWarning,
+    WarningCategory,
+};
+pub use validated::{
+    FromCifValue, Measurand, TypedValue, ValidatedBlock, ValidatedCif, ValidatedLoop, ValidatedRow,
+};
+pub use validator::{ValidationEngine, ValidationMode};
 
-/// Result of validating a CIF document
-#[derive(Debug)]
-pub struct ValidationResult {
-    /// Whether the document is valid
-    pub is_valid: bool,
-    /// Validation errors encountered
-    pub errors: Vec<ValidationError>,
-    /// Validation warnings (non-fatal issues)
-    pub warnings: Vec<ValidationWarning>,
-}
+use cif_parser::CifDocument;
+use std::sync::Arc;
 
-/// A validation error
-#[derive(Debug, Clone)]
-pub struct ValidationError {
-    /// Location in the document where error occurred
-    pub location: String,
-    /// Error message
-    pub message: String,
-    /// Error category
-    pub category: ErrorCategory,
-}
-
-/// Categories of validation errors
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ErrorCategory {
-    /// Unknown data name (not in dictionary)
-    UnknownDataName,
-    /// Invalid data type for this name
-    TypeError,
-    /// Value outside allowed range
-    RangeError,
-    /// Value not in enumerated list
-    EnumerationError,
-    /// Missing mandatory data item
-    MissingMandatory,
-    /// Invalid loop structure
-    LoopStructure,
-}
-
-/// A validation warning (non-fatal)
-#[derive(Debug, Clone)]
-pub struct ValidationWarning {
-    /// Location in the document
-    pub location: String,
-    /// Warning message
-    pub message: String,
-}
-
-/// Main validator for CIF documents
+/// Main validator builder for CIF documents.
 ///
 /// # Example
 ///
 /// ```rust,ignore
-/// let validator = Validator::new()
-///     .with_core()?
-///     .with_dictionary("cif_pow.dic")?;
+/// use cif_validator::{Validator, ValidationMode};
+///
+/// let result = Validator::new()
+///     .with_dictionary_file("cif_core.dic")?
+///     .with_mode(ValidationMode::Strict)
+///     .validate(&doc)?;
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Validator {
+    dictionaries: Vec<Arc<Dictionary>>,
     mode: ValidationMode,
-    // TODO: Add dictionary storage
 }
 
 impl Validator {
-    /// Create a new validator with default settings
+    /// Create a new validator with default settings.
     pub fn new() -> Self {
-        Self {
-            mode: ValidationMode::Strict,
-        }
+        Self::default()
     }
 
-    /// Set the validation mode
+    /// Load a dictionary from a file path.
+    pub fn with_dictionary_file(
+        mut self,
+        path: &str,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let doc = CifDocument::from_file(path)?;
+        let dict = dictionary::load_dictionary(&doc).map_err(|errors| {
+            let msg = errors
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<_>>()
+                .join("\n");
+            std::io::Error::new(std::io::ErrorKind::InvalidData, msg)
+        })?;
+        self.dictionaries.push(Arc::new(dict));
+        Ok(self)
+    }
+
+    /// Load a dictionary from a CIF string.
+    pub fn with_dictionary_str(
+        mut self,
+        content: &str,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let doc = CifDocument::parse(content)?;
+        let dict = dictionary::load_dictionary(&doc).map_err(|errors| {
+            let msg = errors
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<_>>()
+                .join("\n");
+            std::io::Error::new(std::io::ErrorKind::InvalidData, msg)
+        })?;
+        self.dictionaries.push(Arc::new(dict));
+        Ok(self)
+    }
+
+    /// Add a pre-loaded dictionary.
+    pub fn with_dictionary(mut self, dict: Dictionary) -> Self {
+        self.dictionaries.push(Arc::new(dict));
+        self
+    }
+
+    /// Set the validation mode.
     pub fn with_mode(mut self, mode: ValidationMode) -> Self {
         self.mode = mode;
         self
     }
 
-    /// Load the CIF core dictionary
+    /// Validate a CIF document.
     ///
-    /// TODO: Implement dictionary loading
-    pub fn with_core(self) -> Result<Self, String> {
-        // TODO: Load cif_core.dic
-        Ok(self)
+    /// Returns a `ValidationResult` containing any errors and warnings.
+    pub fn validate(
+        &self,
+        doc: &CifDocument,
+    ) -> Result<ValidationResult, Box<dyn std::error::Error + Send + Sync>> {
+        let combined = self.combine_dictionaries()?;
+        let engine = ValidationEngine::new(&combined, self.mode);
+        Ok(engine.validate(doc))
     }
 
-    /// Load an additional dictionary file
+    /// Validate and return a ValidatedCif with typed access.
     ///
-    /// TODO: Implement dictionary loading and composition
-    pub fn with_dictionary(self, _path: &str) -> Result<Self, String> {
-        // TODO: Load dictionary at path
-        Ok(self)
+    /// This allows looking up dictionary definitions at any source position.
+    pub fn validate_typed(
+        &self,
+        doc: CifDocument,
+    ) -> Result<ValidatedCif, Box<dyn std::error::Error + Send + Sync>> {
+        let combined = Arc::new(self.combine_dictionaries()?);
+        Ok(ValidatedCif::new(doc, combined))
     }
 
-    /// Validate a CIF document
-    ///
-    /// TODO: Implement actual validation logic
-    pub fn validate(&self, _doc: &Document) -> Result<ValidationResult, String> {
-        // Stub implementation - always returns valid
-        Ok(ValidationResult {
-            is_valid: true,
-            errors: Vec::new(),
-            warnings: Vec::new(),
-        })
+    /// Get the combined dictionary (for advanced use cases).
+    pub fn combined_dictionary(
+        &self,
+    ) -> Result<Dictionary, Box<dyn std::error::Error + Send + Sync>> {
+        self.combine_dictionaries()
+    }
+
+    fn combine_dictionaries(&self) -> Result<Dictionary, Box<dyn std::error::Error + Send + Sync>> {
+        if self.dictionaries.is_empty() {
+            return Err("No dictionaries loaded".into());
+        }
+
+        let mut combined = (*self.dictionaries[0]).clone();
+        for dict in &self.dictionaries[1..] {
+            combined.merge((**dict).clone());
+        }
+        Ok(combined)
     }
 }
 
-impl Default for Validator {
-    fn default() -> Self {
-        Self::new()
-    }
+/// Convenience function to validate a CIF string against a dictionary file.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use cif_validator::validate;
+///
+/// let result = validate(cif_content, "cif_core.dic")?;
+/// println!("Valid: {}", result.is_valid);
+/// ```
+pub fn validate(
+    cif_content: &str,
+    dict_path: &str,
+) -> Result<ValidationResult, Box<dyn std::error::Error + Send + Sync>> {
+    let doc = CifDocument::parse(cif_content)?;
+    Validator::new()
+        .with_dictionary_file(dict_path)?
+        .validate(&doc)
+}
+
+/// Convenience function to load a dictionary from a file.
+pub fn load_dictionary_file(
+    path: &str,
+) -> Result<Dictionary, Box<dyn std::error::Error + Send + Sync>> {
+    let doc = CifDocument::from_file(path)?;
+    dictionary::load_dictionary(&doc).map_err(|errors| {
+        let msg = errors
+            .iter()
+            .map(|e| e.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, msg))
+            as Box<dyn std::error::Error + Send + Sync>
+    })
 }
 
 #[cfg(test)]
@@ -197,15 +244,91 @@ mod tests {
     }
 
     #[test]
-    fn test_stub_validation() {
-        // This test will be replaced with real validation tests
-        let validator = Validator::new();
-        let doc_str = "data_test\n_test.value 42\n";
-        let doc = Document::parse(doc_str).unwrap();
+    fn test_full_validation_flow() {
+        // Create a simple dictionary
+        let dict_content = r#"
+#\#CIF_2.0
+data_TEST_DICT
+    _dictionary.title             TEST_DICT
+    _dictionary.version           1.0.0
 
+save_cell
+    _definition.id                CELL
+    _definition.scope             Category
+    _definition.class             Set
+save_
+
+save_cell.length_a
+    _definition.id                '_cell.length_a'
+    _name.category_id             cell
+    _name.object_id               length_a
+    _type.purpose                 Measurand
+    _type.container               Single
+    _type.contents                Real
+    _enumeration.range            0.0:
+    _description.text             'Unit cell length a in angstroms'
+save_
+"#;
+
+        let validator = Validator::new()
+            .with_dictionary_str(dict_content)
+            .expect("Failed to load dictionary");
+
+        // Valid CIF
+        let valid_cif = r#"
+data_test
+_cell.length_a 10.5
+"#;
+        let doc = CifDocument::parse(valid_cif).unwrap();
         let result = validator.validate(&doc).unwrap();
-        assert!(result.is_valid);
-        assert_eq!(result.errors.len(), 0);
-        assert_eq!(result.warnings.len(), 0);
+        assert!(result.is_valid, "Expected valid, got: {:?}", result.errors);
+
+        // Invalid CIF (negative value)
+        let invalid_cif = r#"
+data_test
+_cell.length_a -5.0
+"#;
+        let doc = CifDocument::parse(invalid_cif).unwrap();
+        let result = validator.validate(&doc).unwrap();
+        assert!(!result.is_valid);
+        assert_eq!(result.errors.len(), 1);
+    }
+
+    #[test]
+    fn test_validated_cif_definition_lookup() {
+        let dict_content = r#"
+#\#CIF_2.0
+data_TEST_DICT
+
+save_cell.length_a
+    _definition.id                '_cell.length_a'
+    _type.contents                Real
+    _description.text             'Unit cell length a'
+save_
+"#;
+
+        let cif_content = r#"
+data_test
+_cell.length_a 10.5
+"#;
+
+        let validator = Validator::new()
+            .with_dictionary_str(dict_content)
+            .expect("Failed to load dictionary");
+
+        let doc = CifDocument::parse(cif_content).unwrap();
+        let validated = validator.validate_typed(doc).unwrap();
+
+        // The value "10.5" should be on line 3 (1-indexed)
+        // Note: exact position depends on parsing, this is a conceptual test
+        let block = validated.first_block().unwrap();
+        let (value, def) = block.get_with_def("_cell.length_a").unwrap();
+
+        assert!(value.is_numeric());
+        assert!(def.is_some());
+        assert_eq!(
+            def.unwrap().description,
+            Some("Unit cell length a".to_string())
+        );
     }
 }

@@ -15,13 +15,27 @@ readme = "README.md"
 # Core parser dependency
 cif-parser.workspace = true
 
+# dREL parser for dictionary validation
+drel-parser.workspace = true
+
 # Workspace dependencies
 serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
 
 # Optional features
 pyo3 = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
+web-sys = { workspace = true, optional = true }
+
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "dictionary_loading"
+harness = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -29,4 +43,4 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = []
 python = ["pyo3"]
-wasm = ["wasm-bindgen"]
+wasm = ["wasm-bindgen", "serde-wasm-bindgen", "js-sys", "web-sys"]

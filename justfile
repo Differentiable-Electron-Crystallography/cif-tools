@@ -241,6 +241,22 @@ build-all: rust-build python-build-all wasm-build-all
     @echo "✅ All builds complete"
 
 # ============================================================================
+# Benchmarking & Performance
+# ============================================================================
+
+# Run all benchmarks (uses criterion)
+bench:
+    cargo bench
+
+# Run parser benchmarks only
+bench-parser:
+    cargo bench -p cif-parser
+
+# Run validator benchmarks only
+bench-validator:
+    cargo bench -p cif-validator
+
+# ============================================================================
 # Development & Utilities
 # ============================================================================
 
