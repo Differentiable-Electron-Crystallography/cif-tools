@@ -130,6 +130,8 @@ use std::path::Path;
 pub mod ast;
 pub mod error;
 pub mod parser;
+pub mod raw;
+pub mod rules;
 
 mod builder; // Internal only
 
@@ -146,6 +148,12 @@ pub use ast::{CifBlock, CifDocument, CifFrame, CifLoop, CifValue, CifValueKind, 
 
 // Error types
 pub use error::CifError;
+
+// Parser options and results
+pub use parser::{ParseOptions, ParseResult};
+
+// Rules and violations
+pub use rules::{Cif1Rules, Cif2Rules, VersionRules, VersionViolation};
 
 // Convenient type aliases (matching old API)
 pub use CifBlock as Block;

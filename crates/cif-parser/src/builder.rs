@@ -69,6 +69,7 @@ use crate::ast::{CifBlock, CifFrame, CifLoop, CifValue};
 /// - **New loops**: `start_loop()` - finalizes pending loop, then starts new one
 /// - **Save frames**: `add_frame()` - finalizes pending loop, then adds frame
 /// - **Block completion**: `finish()` - finalizes any remaining pending loop
+#[allow(dead_code)]
 pub(crate) struct BlockBuilder {
     /// The block being constructed
     block: CifBlock,
@@ -76,6 +77,7 @@ pub(crate) struct BlockBuilder {
     pending_loop: Option<CifLoop>,
 }
 
+#[allow(dead_code)]
 impl BlockBuilder {
     /// Create a new builder for a block with the given name
     pub(crate) fn new(name: String) -> Self {

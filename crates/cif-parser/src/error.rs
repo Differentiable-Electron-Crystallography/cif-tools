@@ -68,6 +68,7 @@ impl From<pest::error::Error<Rule>> for CifError {
 
 impl CifError {
     /// Create an InvalidStructure error with the given message (no location)
+    #[allow(dead_code)]
     pub(crate) fn invalid_structure(msg: impl Into<String>) -> Self {
         CifError::InvalidStructure {
             message: msg.into(),
@@ -76,6 +77,7 @@ impl CifError {
     }
 
     /// Add location information to this error
+    #[allow(dead_code)]
     pub(crate) fn at_location(self, line: usize, col: usize) -> Self {
         match self {
             CifError::InvalidStructure { message, .. } => CifError::InvalidStructure {

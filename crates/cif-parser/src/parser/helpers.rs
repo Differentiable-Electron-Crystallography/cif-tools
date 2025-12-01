@@ -121,6 +121,7 @@ pub(crate) fn collect_rule<'a>(
 ///
 /// Returns 1-indexed (line, column) using the cached line index.
 /// PERFORMANCE: O(log n) lookup using pre-built line index.
+#[allow(dead_code)]
 pub(crate) fn extract_location(pair: &Pair<Rule>) -> (usize, usize) {
     let offset = pair.as_span().start();
     offset_to_line_col(offset)

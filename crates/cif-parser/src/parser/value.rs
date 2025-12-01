@@ -1,49 +1,22 @@
-//! Value parsing logic with CIF version awareness.
+//! Value parsing logic - produces RawValue types for version-agnostic parsing.
 //!
-//! This module handles parsing of CIF values from the parse tree, with support
-//! for both CIF 1.1 and CIF 2.0 value types.
-//!
-//! # Version-Aware Parsing
-//!
-//! The parser uses explicit version guards (`if version == CifVersion::V2_0`) to
-//! enable CIF 2.0 features only when the magic comment is present. This ensures:
-//! - CIF 1.1 files parse without overhead of checking for CIF 2.0 features
-//! - CIF 2.0 files get full support for lists, tables, and triple-quoted strings
-//! - No ambiguity or dynamic feature detection needed
+//! This module handles parsing of CIF values from the parse tree to lossless
+//! RawValue types. Version-specific interpretation happens in the rules module.
 
-use crate::ast::{CifValue, CifVersion, Span};
 use crate::error::CifError;
 use crate::parser::helpers::extract_span;
+use crate::raw::{
+    RawListSyntax, RawQuotedString, RawTableEntry, RawTableKey, RawTableSyntax, RawTextField,
+    RawTripleQuoted, RawUnquoted, RawValue,
+};
 use crate::Rule;
 use pest::iterators::Pair;
-use std::collections::HashMap;
 
-/// Parse a CIF value from a parse tree node with version awareness.
+/// Parse a CIF value from a parse tree node to a RawValue.
 ///
-/// # CIF Version Handling
-///
-/// - **CIF 1.1 mode** (`version == V1_1`):
-///   - Parses: text, quoted strings, text fields, unquoted strings, numbers
-///   - Characters `[{]}` in unquoted strings are treated as regular characters
-///
-/// - **CIF 2.0 mode** (`version == V2_0`):
-///   - All CIF 1.1 features PLUS:
-///   - Lists: `[value1 value2 value3]`
-///   - Tables: `{key1:value1 key2:value2}`
-///   - Triple-quoted strings: `"""..."""` and `'''...'''`
-///
-/// # Examples
-/// ```ignore
-/// use cif_parser::{CifVersion, parser::value::parse_value};
-///
-/// // CIF 1.1 parsing
-/// let pair = /* ... */;
-/// let value = parse_value(pair, CifVersion::V1_1)?;
-///
-/// // CIF 2.0 parsing (with list support)
-/// let value = parse_value(pair, CifVersion::V2_0)?;
-/// ```
-pub fn parse_value(pair: Pair<Rule>, version: CifVersion) -> Result<CifValue, CifError> {
+/// This is version-agnostic - it produces lossless intermediate representations
+/// that preserve all syntactic information for later version-specific resolution.
+pub fn parse_value_raw(pair: Pair<Rule>) -> Result<RawValue, CifError> {
     let span = extract_span(&pair);
 
     match pair.as_rule() {
@@ -51,76 +24,55 @@ pub fn parse_value(pair: Pair<Rule>, version: CifVersion) -> Result<CifValue, Ci
             // Recursively parse the actual value inside
             let inner = pair.into_inner().next();
             if let Some(inner_pair) = inner {
-                parse_value(inner_pair, version)
+                parse_value_raw(inner_pair)
             } else {
-                // Empty value node - treat as text
-                Ok(CifValue::text(String::new(), span))
+                // Empty value node - treat as unquoted empty string
+                Ok(RawValue::Unquoted(RawUnquoted {
+                    text: String::new(),
+                    span,
+                }))
             }
         }
 
-        // CIF 2.0 ONLY: Lists
-        Rule::list => {
-            // VERSION GUARD: Only parse lists in CIF 2.0 mode
-            if version == CifVersion::V2_0 {
-                parse_list(pair, span, version)
-            } else {
-                // In CIF 1.1, this shouldn't be matched by grammar, but be defensive
-                Ok(CifValue::text(pair.as_str().to_string(), span))
-            }
-        }
+        // List syntax: [value1 value2]
+        Rule::list => parse_list_syntax_raw(pair),
 
-        // CIF 2.0 ONLY: Tables
-        Rule::table => {
-            // VERSION GUARD: Only parse tables in CIF 2.0 mode
-            if version == CifVersion::V2_0 {
-                parse_table(pair, span, version)
-            } else {
-                // In CIF 1.1, this shouldn't be matched by grammar, but be defensive
-                Ok(CifValue::text(pair.as_str().to_string(), span))
-            }
-        }
+        // Table syntax: {key:value}
+        Rule::table => parse_table_syntax_raw(pair),
 
-        // CIF 2.0 ONLY: Triple-quoted strings
-        Rule::triple_quoted_string => {
-            // VERSION GUARD: Only in CIF 2.0 mode
-            if version == CifVersion::V2_0 {
-                parse_triple_quoted(pair, span)
-            } else {
-                Ok(CifValue::text(pair.as_str().to_string(), span))
-            }
-        }
+        // Triple-quoted strings: '''...''' or """..."""
+        Rule::triple_quoted_string => parse_triple_quoted_raw(pair),
 
-        // CIF 1.1 and 2.0: Quoted strings
+        // Regular quoted strings: '...' or "..."
         Rule::quoted_string | Rule::singlequoted | Rule::doublequoted => {
-            parse_quoted_string(pair, span, version)
+            parse_quoted_string_raw(pair)
         }
 
-        // CIF 1.1 and 2.0: Text fields
-        Rule::text_field | Rule::textfield => parse_text_field(pair, span),
+        // Text fields: ;...;
+        Rule::text_field | Rule::textfield => parse_text_field_raw(pair),
 
-        // CIF 1.1 and 2.0: Unquoted strings (whitespace-delimited)
-        Rule::wsdelim_string | Rule::unquoted | Rule::simunq => {
-            // In CIF 1.1 mode, unquoted strings can contain [{]}
-            // In CIF 2.0 mode, these would have been parsed as list/table
-            parse_unquoted(pair, span)
-        }
+        // Unquoted strings (whitespace-delimited)
+        Rule::wsdelim_string | Rule::unquoted | Rule::simunq => parse_unquoted_raw(pair),
 
-        // Fallback: treat as text
-        _ => Ok(CifValue::text(pair.as_str().to_string(), span)),
+        // Fallback: treat as unquoted
+        _ => Ok(RawValue::Unquoted(RawUnquoted {
+            text: pair.as_str().to_string(),
+            span,
+        })),
     }
 }
 
-/// Parse a list value (CIF 2.0 only): `[value1 value2 value3]`
-///
-/// Lists can contain any CIF value type, including nested lists and tables.
-fn parse_list(pair: Pair<Rule>, span: Span, version: CifVersion) -> Result<CifValue, CifError> {
-    let mut values = Vec::new();
+/// Parse a list syntax node to RawListSyntax.
+fn parse_list_syntax_raw(pair: Pair<Rule>) -> Result<RawValue, CifError> {
+    let span = extract_span(&pair);
+    let raw_text = pair.as_str().to_string();
+    let mut elements = Vec::new();
 
     for inner_pair in pair.into_inner() {
         match inner_pair.as_rule() {
             Rule::data_value | Rule::value | Rule::item_value | Rule::loop_value => {
-                let value = parse_value(inner_pair, version)?;
-                values.push(value);
+                let value = parse_value_raw(inner_pair)?;
+                elements.push(value);
             }
             _ => {
                 // Skip whitespace and delimiters
@@ -128,52 +80,58 @@ fn parse_list(pair: Pair<Rule>, span: Span, version: CifVersion) -> Result<CifVa
         }
     }
 
-    Ok(CifValue::list(values, span))
+    Ok(RawValue::ListSyntax(RawListSyntax {
+        raw_text,
+        elements,
+        span,
+    }))
 }
 
-/// Parse a table value (CIF 2.0 only): `{key1:value1 key2:value2}`
-///
-/// Tables map string keys to CIF values. Keys must be quoted strings.
-fn parse_table(pair: Pair<Rule>, span: Span, version: CifVersion) -> Result<CifValue, CifError> {
-    let mut table = HashMap::new();
+/// Parse a table syntax node to RawTableSyntax.
+fn parse_table_syntax_raw(pair: Pair<Rule>) -> Result<RawValue, CifError> {
+    let span = extract_span(&pair);
+    let raw_text = pair.as_str().to_string();
+    let mut entries = Vec::new();
 
     for inner_pair in pair.into_inner() {
         if inner_pair.as_rule() == Rule::table_entry {
-            let (key, value) = parse_table_entry(inner_pair, version)?;
-            table.insert(key, value);
+            let entry = parse_table_entry_raw(inner_pair)?;
+            entries.push(entry);
         }
     }
 
-    Ok(CifValue::table(table, span))
+    Ok(RawValue::TableSyntax(RawTableSyntax {
+        raw_text,
+        entries,
+        span,
+    }))
 }
 
-/// Parse a single table entry: `"key":value`
-fn parse_table_entry(
-    pair: Pair<Rule>,
-    version: CifVersion,
-) -> Result<(String, CifValue), CifError> {
-    let mut key = String::new();
-    let mut value = CifValue::unknown(Span::default());
+/// Parse a single table entry (key:value pair).
+fn parse_table_entry_raw(pair: Pair<Rule>) -> Result<RawTableEntry, CifError> {
+    let mut key: Option<RawTableKey> = None;
+    let mut value: Option<RawValue> = None;
 
     for inner_pair in pair.into_inner() {
         match inner_pair.as_rule() {
-            // CIF 2.0 ONLY: Triple-quoted string keys
+            // Triple-quoted string key
             Rule::triple_quoted_string => {
-                // VERSION GUARD: Only in CIF 2.0 mode
-                if version == CifVersion::V2_0 {
-                    key = extract_quoted_content(inner_pair.as_str());
-                } else {
-                    // Defensive: shouldn't happen in CIF 1.1
-                    key = inner_pair.as_str().to_string();
+                let raw = parse_triple_quoted_raw(inner_pair)?;
+                if let RawValue::TripleQuotedString(t) = raw {
+                    key = Some(RawTableKey::TripleQuoted(t));
                 }
             }
-            // CIF 1.1 and 2.0: Regular quoted strings
+            // Regular quoted string key
             Rule::quoted_string
             | Rule::singlequoted
             | Rule::doublequoted
             | Rule::table_key_quoted => {
-                key = extract_quoted_content(inner_pair.as_str());
+                let raw = parse_quoted_string_raw(inner_pair)?;
+                if let RawValue::QuotedString(q) = raw {
+                    key = Some(RawTableKey::Quoted(q));
+                }
             }
+            // Value
             Rule::data_value
             | Rule::value
             | Rule::item_value
@@ -182,7 +140,7 @@ fn parse_table_entry(
             | Rule::table
             | Rule::wsdelim_string
             | Rule::unquoted => {
-                value = parse_value(inner_pair, version)?;
+                value = Some(parse_value_raw(inner_pair)?);
             }
             _ => {
                 // Skip other tokens (colons, whitespace)
@@ -190,136 +148,94 @@ fn parse_table_entry(
         }
     }
 
-    Ok((key, value))
+    // Use defaults if not found
+    let key = key.unwrap_or_else(|| {
+        RawTableKey::Quoted(RawQuotedString {
+            raw_content: String::new(),
+            quote_char: '"',
+            has_doubled_quotes: false,
+            span: crate::ast::Span::default(),
+        })
+    });
+
+    let value = value.unwrap_or_else(|| {
+        RawValue::Unquoted(RawUnquoted {
+            text: String::new(),
+            span: crate::ast::Span::default(),
+        })
+    });
+
+    Ok(RawTableEntry { key, value })
 }
 
-/// Parse a triple-quoted string (CIF 2.0 only): `"""..."""` or `'''...'''`
-///
-/// Triple-quoted strings can span multiple lines and contain raw text without escaping.
-fn parse_triple_quoted(pair: Pair<Rule>, span: Span) -> Result<CifValue, CifError> {
-    let text = pair.as_str();
-    let pest_span = pair.as_span();
+/// Parse a triple-quoted string to RawTripleQuoted.
+fn parse_triple_quoted_raw(pair: Pair<Rule>) -> Result<RawValue, CifError> {
+    let span = extract_span(&pair);
+    let raw_content = pair.as_str().to_string();
 
-    // Validate minimum length (must have opening and closing triple quotes)
-    if text.len() < 6 {
-        return Err(CifError::InvalidStructure {
-            message: format!(
-                "Triple-quoted string too short: expected at least 6 characters, got {}",
-                text.len()
-            ),
-            location: Some((
-                pest_span.start_pos().line_col().0,
-                pest_span.start_pos().line_col().1,
-            )),
-        });
-    }
-
-    // Remove triple-quote delimiters
-    let content = if (text.starts_with("\"\"\"") && text.ends_with("\"\"\""))
-        || (text.starts_with("'''") && text.ends_with("'''"))
-    {
-        &text[3..text.len() - 3]
+    // Determine quote character
+    let quote_char = if raw_content.starts_with("'''") {
+        '\''
     } else {
-        // Grammar should prevent this, but be defensive
-        return Err(CifError::InvalidStructure {
-            message: "Triple-quoted string missing opening or closing delimiters".to_string(),
-            location: Some((
-                pest_span.start_pos().line_col().0,
-                pest_span.start_pos().line_col().1,
-            )),
-        });
+        '"'
     };
 
-    Ok(CifValue::text(content.to_string(), span))
+    Ok(RawValue::TripleQuotedString(RawTripleQuoted {
+        raw_content,
+        quote_char,
+        span,
+    }))
 }
 
-/// Parse a quoted string (CIF 1.1 and 2.0): `'...'` or `"..."`
-///
-/// # CIF Version Differences
-///
-/// - **CIF 1.1**: Supports doubled-quote escaping (`'O''Brien'` → `O'Brien`)
-/// - **CIF 2.0**: Doubled quotes are invalid; use triple-quoted strings instead
-///
-/// Note: Quoted strings containing `?` or `.` remain as Text values, not special values.
-/// Only unquoted `?` and `.` are converted to Unknown/NotApplicable.
-fn parse_quoted_string(
-    pair: Pair<Rule>,
-    span: Span,
-    version: CifVersion,
-) -> Result<CifValue, CifError> {
-    let text = pair.as_str();
-    let pest_span = pair.as_span();
-    let content = extract_quoted_content(text);
+/// Parse a quoted string to RawQuotedString.
+fn parse_quoted_string_raw(pair: Pair<Rule>) -> Result<RawValue, CifError> {
+    let span = extract_span(&pair);
+    let raw_content = pair.as_str().to_string();
 
-    // VERSION GUARD: CIF 2.0 does not support doubled-quote escaping
-    // Doubled quotes ('' or "") in CIF 2.0 are invalid - use triple quotes instead
-    if version == CifVersion::V2_0 && (content.contains("''") || content.contains("\"\"")) {
-        return Err(CifError::InvalidStructure {
-            message: "Doubled-quote escaping ('''' or \"\"\"\") is not allowed in CIF 2.0. Use triple-quoted strings instead: '''...''' or \"\"\"...\"\"\"".to_string(),
-            location: Some((pest_span.start_pos().line_col().0, pest_span.start_pos().line_col().1)),
-        });
-    }
+    // Determine quote character
+    let quote_char = raw_content.chars().next().unwrap_or('\'');
 
-    // Try to parse as number (including uncertainty notation)
-    // But do NOT convert to special values - quoted '?' and '.' are text, not Unknown/NotApplicable
-    if let Ok(num) = content.parse::<f64>() {
-        return Ok(CifValue::numeric(num, span));
-    }
+    // Check for doubled quotes in the content (after removing outer quotes)
+    let content_without_quotes = if raw_content.len() >= 2 {
+        &raw_content[1..raw_content.len() - 1]
+    } else {
+        ""
+    };
 
-    // Try uncertainty notation
-    if let Some((value, uncertainty)) = CifValue::parse_with_uncertainty(&content) {
-        return Ok(CifValue::numeric_with_uncertainty(value, uncertainty, span));
-    }
+    let has_doubled_quotes = if quote_char == '\'' {
+        content_without_quotes.contains("''")
+    } else {
+        content_without_quotes.contains("\"\"")
+    };
 
-    // Fall back to text (never convert to special values for quoted strings)
-    Ok(CifValue::text(content, span))
+    Ok(RawValue::QuotedString(RawQuotedString {
+        raw_content,
+        quote_char,
+        has_doubled_quotes,
+        span,
+    }))
 }
 
-/// Parse a text field (CIF 1.1 and 2.0): `;...\n;`
-///
-/// Text fields are multi-line strings delimited by semicolons at line starts.
-fn parse_text_field(pair: Pair<Rule>, span: Span) -> Result<CifValue, CifError> {
+/// Parse a text field to RawTextField.
+fn parse_text_field_raw(pair: Pair<Rule>) -> Result<RawValue, CifError> {
+    let span = extract_span(&pair);
     let text = pair.as_str();
 
-    // Remove semicolon delimiters and surrounding whitespace
+    // Remove semicolon delimiters and trim
     let content = text.trim_start_matches(';').trim_end_matches(';').trim();
 
-    Ok(CifValue::text(content.to_string(), span))
+    Ok(RawValue::TextField(RawTextField {
+        content: content.to_string(),
+        span,
+    }))
 }
 
-/// Parse an unquoted string (CIF 1.1 and 2.0)
-///
-/// Handles special values (`?`, `.`), numeric parsing, and uncertainty notation.
-fn parse_unquoted(pair: Pair<Rule>, span: Span) -> Result<CifValue, CifError> {
-    let text = pair.as_str().trim();
+/// Parse an unquoted string to RawUnquoted.
+fn parse_unquoted_raw(pair: Pair<Rule>) -> Result<RawValue, CifError> {
+    let span = extract_span(&pair);
+    let text = pair.as_str().trim().to_string();
 
-    // Use CifValue::parse_value_with_span which handles special values, numbers,
-    // uncertainty notation, and text
-    Ok(CifValue::parse_value_with_span(text, span))
-}
-
-/// Helper: Extract content from a quoted string (remove quotes)
-///
-/// Handles both CIF 1.1 quoted strings ('...' and "...") and CIF 2.0 triple-quoted
-/// strings ('''...''' and """..."""). Triple-quotes are checked first to ensure
-/// correct parsing.
-fn extract_quoted_content(text: &str) -> String {
-    let trimmed = text.trim();
-
-    // Check for triple-quoted strings first (CIF 2.0)
-    if (trimmed.starts_with("\"\"\"") && trimmed.ends_with("\"\"\"") && trimmed.len() >= 6)
-        || (trimmed.starts_with("'''") && trimmed.ends_with("'''") && trimmed.len() >= 6)
-    {
-        trimmed[3..trimmed.len() - 3].to_string()
-    }
-    // Then check for single/double quotes (CIF 1.1 and 2.0)
-    else if (trimmed.starts_with('\'') && trimmed.ends_with('\''))
-        || (trimmed.starts_with('"') && trimmed.ends_with('"'))
-    {
-        trimmed[1..trimmed.len().saturating_sub(1)].to_string()
-    } else {
-        trimmed.to_string()
-    }
+    Ok(RawValue::Unquoted(RawUnquoted { text, span }))
 }
 
 #[cfg(test)]
