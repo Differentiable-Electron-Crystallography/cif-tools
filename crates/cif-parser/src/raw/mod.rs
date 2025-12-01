@@ -1,4 +1,4 @@
-//! Raw parsing types for version-agnostic, lossless CIF parsing.
+//! Raw parsing types for version-agnostic, lossless CIF parsing according to the cif.pest superset grammar.
 //!
 //! This module contains intermediate representations that preserve all syntactic
 //! information from the input, allowing version-specific rules to be applied

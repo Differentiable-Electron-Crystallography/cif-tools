@@ -10,13 +10,30 @@
 // This PEG grammar uses the CIF 2.0 EBNF defined syntax wherever possible, however if the
 // CIF 2.0 grammar is different from the CIF 1.1 syntax (which is less rigorously defined) using an ENBF-esque
 // syntax defined in a series of paragraphs here: https://www.iucr.org/resources/cif/spec/version1.1/cifsyntax#intro.
-// Then the PEG grammar of this file will use the CIF 1.1 specification.
 //
-// This means the formal grammar (this file, and also refered to as the "grammar" of this parser, as distinct from its
-// "semantics") is a of the CIF2.0 and CIF1.1 grammars.
-// Where CIF2.0 grammars diverge, this parser handles them not here in the PEG but as "semantic" rules encoded in the
-// Parser. These semantic rules can be found in the parser because they are guarded by a check for the document's
-// CIF version. The bifurcation is further reflected in /tests/parser/grammar_tests and /tests/parser/semantic_tests.
+// Then the PEG grammar of this file will use the CIF 1.1 specification interpreted to EBNF.
+// Furthermore the PEG grammar here makes some accommodations for performance.
+//
+// This means the formal grammar (this file, and also referred to as the "grammar" of this parser, as distinct from its
+// "semantics") is a mix of the CIF2.0 and CIF1.1 grammars, it's a superset of both specifications. With contradictions,
+// ambiguities, resolving at the grammatical level to CIF1.1. Where CIF2.0 alone is specified (e.g. Table, Lists) they
+// can be freely expressed here.
+//
+// Because the common superset is a bit ambiguous, this grammar is subject to change, as the parser is more widely used.
+// The goal is to distill this grammar, with variations expressed in the dialect VersionRules trait.
+//
+// In practice this means the parser follows a 2 pass architecture.
+//
+// The parser first parses the input to a "raw" AST, where the nodes are lossless, preserving all input data,
+// and parsing according to the superset expressed in this file.
+//
+// The parser then makes a second pass according to the rules of a specific "dialect", these rules are instructions for
+// How to resolve raw AST nodes to dialect specific AST nodes.
+// Resolution can consist of validation and transformation.
+//
+// These passes map to the directory structure...
+// Pass 1 -> /raw
+// Pass 2 -> /rules
 //
 // A note on naming conventions:
 // - CIF 2.0 EBNF uses hyphenated names (data-heading, container-code)

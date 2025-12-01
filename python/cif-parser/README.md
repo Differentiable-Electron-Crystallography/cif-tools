@@ -73,6 +73,28 @@ for name, value in block.items():
 - `is_missing` - True if value is `.` (inapplicable)
 - `is_unknown` - True if value is `?` (unknown)
 
+## Examples
+
+Interactive Jupyter notebooks are provided in the `examples/` directory:
+
+- **version_detection.ipynb** - CIF version detection and CIF 2.0 features
+- **type_checking_example.ipynb** - Type-safe parsing with IDE autocomplete
+- **duckdb_integration.ipynb** - SQL queries on CIF data with pandas/DuckDB
+
+### Running the Examples
+
+Install the optional example dependencies:
+
+```bash
+# Using uv (recommended)
+uv sync --extra examples
+uv run jupyter lab examples/
+
+# Or using pip
+pip install cif-parser[examples]
+jupyter lab examples/
+```
+
 ## CIF Version Support
 
 The parser automatically detects CIF version based on file content:
