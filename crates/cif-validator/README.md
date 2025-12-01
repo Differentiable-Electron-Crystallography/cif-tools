@@ -16,7 +16,7 @@ DDLm-based validation for CIF (Crystallographic Information File) format.
 - **Multi-Dictionary Composition**: Combine multiple dictionaries (core + powder + restraints, etc.)
 - **Type System Validation**: Enforce DDLm types (Integer, Real, DateTime, Uri, etc.)
 - **Constraint Checking**: Validate enumerations, ranges, and mandatory items
-- **dREL Evaluation**: Execute embedded dictionary methods (future)
+- **dREL Dependency tree**: dREL is not evaluated, but where a dREL entry references other entries in the dictionary, the validator will check these entries exist. 
 
 ## Planned Usage
 

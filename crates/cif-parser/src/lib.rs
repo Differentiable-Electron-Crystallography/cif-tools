@@ -1,7 +1,7 @@
 //! # CIF Parser Library
 //!
 //! A comprehensive parser for Crystallographic Information Framework (CIF) files,
-//! implementing the CIF 1.1 specification.
+//! implementing the CIF 1.1 and CIF2.0 specifications.
 //!
 //! ## What is CIF?
 //!
@@ -136,7 +136,7 @@ mod builder; // Internal only
 // ===== PEST Parser =====
 
 #[derive(Parser)]
-#[grammar = "cif.pest"]
+#[grammar = "grammar/cif.pest"]
 pub struct CIFParser;
 
 // ===== Re-exports =====
