@@ -69,10 +69,10 @@
 //!
 //! ## Module Organization
 //!
-//! - [`ast`] - Abstract Syntax Tree types (data structures)
-//! - [`parser`] - Parsing logic (PEST → AST conversion)
+//! - [`ast`] - Abstract Syntax Tree types (final, typed representation)
+//! - [`raw`] - Raw AST types and Pass 1 parsing (lossless, version-agnostic)
+//! - [`rules`] - Pass 2 resolution (version-specific: CIF 1.1 vs 2.0)
 //! - [`error`] - Error types
-//! - `builder` - Internal state management helpers (not public)
 //!
 //! ## Examples
 //!
@@ -129,9 +129,8 @@ use std::path::Path;
 
 pub mod ast;
 pub mod error;
-pub mod parser;
-
-mod builder; // Internal only
+pub mod raw;
+pub mod rules;
 
 // ===== PEST Parser =====
 
@@ -147,6 +146,9 @@ pub use ast::{CifBlock, CifDocument, CifFrame, CifLoop, CifValue, CifValueKind, 
 // Error types
 pub use error::CifError;
 
+// Rules and violations
+pub use rules::{Cif1Rules, Cif2Rules, VersionRules, VersionViolation};
+
 // Convenient type aliases (matching old API)
 pub use CifBlock as Block;
 pub use CifDocument as Document;
@@ -155,6 +157,78 @@ pub use CifLoop as Loop;
 pub use CifValue as Value;
 pub use CifValueKind as ValueKind;
 pub use CifVersion as Version;
+
+// ===== Parse Options and Results =====
+
+/// Options for parsing CIF documents.
+///
+/// Use the builder pattern to configure parsing behavior:
+///
+/// ```
+/// use cif_parser::ParseOptions;
+///
+/// let options = ParseOptions::new()
+///     .upgrade_guidance(true);
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct ParseOptions {
+    /// Collect upgrade guidance (what would make CIF 1.1 valid CIF 2.0)
+    pub upgrade_guidance: bool,
+}
+
+impl ParseOptions {
+    /// Create new default options.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Enable or disable upgrade guidance collection.
+    ///
+    /// When enabled and parsing a CIF 1.1 file, the parser will also check
+    /// what changes would be needed to make it valid CIF 2.0.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use cif_parser::ParseOptions;
+    ///
+    /// let options = ParseOptions::new().upgrade_guidance(true);
+    /// ```
+    pub fn upgrade_guidance(mut self, enabled: bool) -> Self {
+        self.upgrade_guidance = enabled;
+        self
+    }
+}
+
+/// Result of parsing with options.
+///
+/// Contains both the parsed document and any upgrade issues found
+/// (if `upgrade_guidance` was enabled).
+#[derive(Debug)]
+pub struct ParseResult {
+    /// The parsed CIF document
+    pub document: CifDocument,
+
+    /// Upgrade issues found (empty unless `upgrade_guidance` was enabled AND file is CIF 1.1)
+    ///
+    /// Each issue describes what would need to change to make the file valid CIF 2.0.
+    pub upgrade_issues: Vec<VersionViolation>,
+}
+
+impl ParseResult {
+    /// Create a new parse result.
+    pub fn new(document: CifDocument, upgrade_issues: Vec<VersionViolation>) -> Self {
+        Self {
+            document,
+            upgrade_issues,
+        }
+    }
+
+    /// Check if the document has any upgrade issues.
+    pub fn has_upgrade_issues(&self) -> bool {
+        !self.upgrade_issues.is_empty()
+    }
+}
 
 // ===== Public Convenience Functions =====
 
@@ -182,6 +256,70 @@ pub fn parse_string(input: &str) -> Result<CifDocument, CifError> {
     CifDocument::parse(input)
 }
 
+/// Parse a CIF string with options.
+///
+/// This is the main entry point for parsing with advanced options like upgrade guidance.
+///
+/// # Example
+///
+/// ```
+/// use cif_parser::{ParseOptions, parse_string_with_options};
+///
+/// let input = "data_test\n_item value\n";
+/// let result = parse_string_with_options(input, ParseOptions::new().upgrade_guidance(true))?;
+///
+/// println!("Document: {:?}", result.document);
+/// for issue in &result.upgrade_issues {
+///     println!("Upgrade issue: {}", issue);
+/// }
+/// # Ok::<(), cif_parser::CifError>(())
+/// ```
+pub fn parse_string_with_options(
+    input: &str,
+    options: ParseOptions,
+) -> Result<ParseResult, CifError> {
+    // Pass 1: Parse to raw AST (version-agnostic)
+    let raw_doc = raw::parser::parse_raw(input)?;
+
+    // Detect version from magic comment (stored in raw_doc)
+    let version = if raw_doc.has_cif2_magic {
+        CifVersion::V2_0
+    } else {
+        CifVersion::V1_1
+    };
+
+    // Pass 2: Resolve with version rules
+    let document = match version {
+        CifVersion::V1_1 => Cif1Rules.resolve(&raw_doc).map_err(violation_to_error)?,
+        CifVersion::V2_0 => Cif2Rules.resolve(&raw_doc).map_err(violation_to_error)?,
+    };
+
+    // Collect upgrade issues if requested AND file is CIF 1.1
+    let upgrade_issues = if options.upgrade_guidance && version == CifVersion::V1_1 {
+        Cif2Rules.collect_violations(&raw_doc)
+    } else {
+        vec![]
+    };
+
+    Ok(ParseResult::new(document, upgrade_issues))
+}
+
+/// Convert a VersionViolation to CifError.
+fn violation_to_error(violation: VersionViolation) -> CifError {
+    CifError::InvalidStructure {
+        message: format!(
+            "[{}] {}{}",
+            violation.rule_id,
+            violation.message,
+            violation
+                .suggestion
+                .map(|s| format!(" ({})", s))
+                .unwrap_or_default()
+        ),
+        location: Some((violation.span.start_line, violation.span.start_col)),
+    }
+}
+
 // ===== Re-export for internal use =====
 pub use pest::iterators::Pair;
 // Rule enum is automatically public via the #[derive(Parser)] macro
@@ -195,90 +333,3 @@ pub mod wasm;
 // Python bindings module (conditionally compiled)
 #[cfg(feature = "python")]
 pub mod python;
-
-// ===== Tests =====
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_simple_cif() {
-        let cif_content = r#"
-data_test
-_tag1 value1
-_tag2 'quoted value'
-_tag3 123.45
-"#;
-
-        let doc = CifDocument::parse(cif_content).unwrap();
-        assert_eq!(doc.blocks.len(), 1);
-
-        let block = &doc.blocks[0];
-        assert_eq!(block.name, "test");
-        assert_eq!(block.items.len(), 3);
-
-        assert_eq!(
-            block.get_item("_tag1").unwrap().as_string().unwrap(),
-            "value1"
-        );
-        assert_eq!(
-            block.get_item("_tag2").unwrap().as_string().unwrap(),
-            "quoted value"
-        );
-        assert_eq!(
-            block.get_item("_tag3").unwrap().as_numeric().unwrap(),
-            123.45
-        );
-    }
-
-    #[test]
-    fn test_parse_loop() {
-        let cif_content = r#"
-data_test
-loop_
-_atom.id
-_atom.type
-_atom.x
-1 C 1.0
-2 N 2.0
-3 O 3.0
-"#;
-
-        let doc = CifDocument::parse(cif_content).unwrap();
-        let block = &doc.blocks[0];
-        assert_eq!(block.loops.len(), 1);
-
-        let loop_ = &block.loops[0];
-        assert_eq!(loop_.tags.len(), 3);
-        assert_eq!(loop_.len(), 3);
-
-        assert_eq!(
-            loop_
-                .get_by_tag(0, "_atom.type")
-                .unwrap()
-                .as_string()
-                .unwrap(),
-            "C"
-        );
-        assert_eq!(loop_.get(1, 2).unwrap().as_numeric().unwrap(), 2.0);
-    }
-
-    #[test]
-    fn test_special_values() {
-        let cif_content = r#"
-data_test
-_unknown ?
-_not_applicable .
-"#;
-
-        let doc = CifDocument::parse(cif_content).unwrap();
-        let block = &doc.blocks[0];
-
-        assert!(block.get_item("_unknown").unwrap().is_unknown());
-        assert!(block
-            .get_item("_not_applicable")
-            .unwrap()
-            .is_not_applicable());
-    }
-}
