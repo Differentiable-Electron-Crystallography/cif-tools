@@ -1,0 +1,301 @@
+#\#CIF_2.0
+##############################################################################
+#                                                                            #
+#  TEST VALIDATION DICTIONARY                                                #
+#                                                                            #
+#  A minimal DDLm dictionary for testing cif-validator functionality.        #
+#  Tests type checking, enumeration constraints, range constraints,          #
+#  and mandatory items.                                                      #
+#                                                                            #
+##############################################################################
+
+data_TEST_VALIDATION_DIC
+
+    _dictionary.title            TEST_VALIDATION_DIC
+    _dictionary.class            Instance
+    _dictionary.version          1.0.0
+    _dictionary.date             2024-01-01
+    _dictionary.uri              https://github.com/cif-tools/test-validation-dic
+    _dictionary.ddl_conformance  4.2.0
+    _dictionary.namespace        TestValidation
+    _description.text
+;
+    A test dictionary for validating CIF files against DDLm constraints.
+    Used by the cif-validator integration tests across Rust, Python, and JavaScript.
+;
+
+##############################################################################
+#                                                                            #
+#  CELL CATEGORY - Unit cell parameters                                      #
+#                                                                            #
+##############################################################################
+
+save_CELL
+    _definition.id               CELL
+    _definition.scope            Category
+    _definition.class            Set
+    _definition.update           2024-01-01
+    _description.text
+;
+    Category for unit cell parameters. Contains cell lengths and angles
+    which must satisfy physical constraints (positive lengths, angles 0-180).
+;
+    _name.category_id            TEST_VALIDATION_DIC
+    _name.object_id              CELL
+save_
+
+save_cell.length_a
+    _definition.id               '_cell.length_a'
+    _definition.update           2024-01-01
+    _name.category_id            cell
+    _name.object_id              length_a
+    _type.purpose                Measurand
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Real
+    _enumeration.range           0.1:1000.0
+    _units.code                  angstroms
+    _description.text            'Unit cell length a in angstroms (must be 0.1-1000)'
+save_
+
+save_cell.length_b
+    _definition.id               '_cell.length_b'
+    _definition.update           2024-01-01
+    _name.category_id            cell
+    _name.object_id              length_b
+    _type.purpose                Measurand
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Real
+    _enumeration.range           0.1:1000.0
+    _units.code                  angstroms
+    _description.text            'Unit cell length b in angstroms (must be 0.1-1000)'
+save_
+
+save_cell.length_c
+    _definition.id               '_cell.length_c'
+    _definition.update           2024-01-01
+    _name.category_id            cell
+    _name.object_id              length_c
+    _type.purpose                Measurand
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Real
+    _enumeration.range           0.1:1000.0
+    _units.code                  angstroms
+    _description.text            'Unit cell length c in angstroms (must be 0.1-1000)'
+save_
+
+save_cell.angle_alpha
+    _definition.id               '_cell.angle_alpha'
+    _definition.update           2024-01-01
+    _name.category_id            cell
+    _name.object_id              angle_alpha
+    _type.purpose                Measurand
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Real
+    _enumeration.range           0.0:180.0
+    _units.code                  degrees
+    _description.text            'Unit cell angle alpha in degrees (must be 0-180)'
+save_
+
+save_cell.angle_beta
+    _definition.id               '_cell.angle_beta'
+    _definition.update           2024-01-01
+    _name.category_id            cell
+    _name.object_id              angle_beta
+    _type.purpose                Measurand
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Real
+    _enumeration.range           0.0:180.0
+    _units.code                  degrees
+    _description.text            'Unit cell angle beta in degrees (must be 0-180)'
+save_
+
+save_cell.angle_gamma
+    _definition.id               '_cell.angle_gamma'
+    _definition.update           2024-01-01
+    _name.category_id            cell
+    _name.object_id              angle_gamma
+    _type.purpose                Measurand
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Real
+    _enumeration.range           0.0:180.0
+    _units.code                  degrees
+    _description.text            'Unit cell angle gamma in degrees (must be 0-180)'
+save_
+
+##############################################################################
+#                                                                            #
+#  SYMMETRY CATEGORY - Space group information                               #
+#                                                                            #
+##############################################################################
+
+save_SYMMETRY
+    _definition.id               SYMMETRY
+    _definition.scope            Category
+    _definition.class            Set
+    _definition.update           2024-01-01
+    _description.text            'Category for symmetry information including crystal system'
+    _name.category_id            TEST_VALIDATION_DIC
+    _name.object_id              SYMMETRY
+save_
+
+save_symmetry.crystal_system
+    _definition.id               '_symmetry.crystal_system'
+    _definition.update           2024-01-01
+    _name.category_id            symmetry
+    _name.object_id              crystal_system
+    _type.purpose                State
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Text
+    _description.text            'Crystal system (must be one of the 7 crystal systems)'
+
+    loop_
+      _enumeration_set.state
+      _enumeration_set.detail
+        triclinic    'No symmetry constraints'
+        monoclinic   'One 2-fold axis or mirror plane'
+        orthorhombic 'Three mutually perpendicular 2-fold axes'
+        tetragonal   'One 4-fold axis'
+        trigonal     'One 3-fold axis'
+        hexagonal    'One 6-fold axis'
+        cubic        'Four 3-fold axes along body diagonals'
+save_
+
+##############################################################################
+#                                                                            #
+#  ENTRY CATEGORY - Entry metadata                                           #
+#                                                                            #
+##############################################################################
+
+save_ENTRY
+    _definition.id               ENTRY
+    _definition.scope            Category
+    _definition.class            Set
+    _definition.update           2024-01-01
+    _description.text            'Category for entry-level metadata'
+    _name.category_id            TEST_VALIDATION_DIC
+    _name.object_id              ENTRY
+save_
+
+save_entry.id
+    _definition.id               '_entry.id'
+    _definition.update           2024-01-01
+    _name.category_id            entry
+    _name.object_id              id
+    _type.purpose                Key
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Text
+    _description.text            'Unique identifier for this entry'
+save_
+
+save_entry.title
+    _definition.id               '_entry.title'
+    _definition.update           2024-01-01
+    _name.category_id            entry
+    _name.object_id              title
+    _type.purpose                Describe
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Text
+    _description.text            'Title describing this entry'
+save_
+
+##############################################################################
+#                                                                            #
+#  ATOM_SITE CATEGORY - Atom positions (loop)                                #
+#                                                                            #
+##############################################################################
+
+save_ATOM_SITE
+    _definition.id               ATOM_SITE
+    _definition.scope            Category
+    _definition.class            Loop
+    _definition.update           2024-01-01
+    _description.text            'Category for atomic site information in a loop'
+    _name.category_id            TEST_VALIDATION_DIC
+    _name.object_id              ATOM_SITE
+    _category_key.name           '_atom_site.label'
+save_
+
+save_atom_site.label
+    _definition.id               '_atom_site.label'
+    _definition.update           2024-01-01
+    _name.category_id            atom_site
+    _name.object_id              label
+    _type.purpose                Key
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Text
+    _description.text            'Unique label for this atom site'
+save_
+
+save_atom_site.type_symbol
+    _definition.id               '_atom_site.type_symbol'
+    _definition.update           2024-01-01
+    _name.category_id            atom_site
+    _name.object_id              type_symbol
+    _type.purpose                State
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Text
+    _description.text            'Element symbol for this atom'
+save_
+
+save_atom_site.fract_x
+    _definition.id               '_atom_site.fract_x'
+    _definition.update           2024-01-01
+    _name.category_id            atom_site
+    _name.object_id              fract_x
+    _type.purpose                Measurand
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Real
+    _enumeration.range           0.0:1.0
+    _description.text            'Fractional x coordinate (must be 0-1)'
+save_
+
+save_atom_site.fract_y
+    _definition.id               '_atom_site.fract_y'
+    _definition.update           2024-01-01
+    _name.category_id            atom_site
+    _name.object_id              fract_y
+    _type.purpose                Measurand
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Real
+    _enumeration.range           0.0:1.0
+    _description.text            'Fractional y coordinate (must be 0-1)'
+save_
+
+save_atom_site.fract_z
+    _definition.id               '_atom_site.fract_z'
+    _definition.update           2024-01-01
+    _name.category_id            atom_site
+    _name.object_id              fract_z
+    _type.purpose                Measurand
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Real
+    _enumeration.range           0.0:1.0
+    _description.text            'Fractional z coordinate (must be 0-1)'
+save_
+
+save_atom_site.occupancy
+    _definition.id               '_atom_site.occupancy'
+    _definition.update           2024-01-01
+    _name.category_id            atom_site
+    _name.object_id              occupancy
+    _type.purpose                Measurand
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Real
+    _enumeration.range           0.0:1.0
+    _description.text            'Site occupancy (must be 0-1)'
+save_

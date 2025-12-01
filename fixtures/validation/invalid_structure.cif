@@ -1,0 +1,73 @@
+#\#CIF_2.0
+##############################################################################
+#                                                                            #
+#  INVALID TEST STRUCTURE                                                    #
+#                                                                            #
+#  A CIF file with intentional validation errors for testing cif-validator.  #
+#  Contains: range errors, type errors, and enumeration errors.              #
+#                                                                            #
+##############################################################################
+
+data_invalid_structure
+
+# Entry metadata
+_entry.id                        'invalid_test_001'
+_entry.title                     'An Invalid Test Structure with Errors'
+
+# ============================================================================
+# ERROR 1: Range error - cell length negative (must be 0.1-1000)
+# ============================================================================
+_cell.length_a                   -5.0
+
+# ============================================================================
+# ERROR 2: Range error - cell length too large (must be 0.1-1000)
+# ============================================================================
+_cell.length_b                   5000.0
+
+# Valid cell length for comparison
+_cell.length_c                   8.7
+
+# ============================================================================
+# ERROR 3: Range error - angle out of range (must be 0-180)
+# ============================================================================
+_cell.angle_alpha                270.0
+
+# ============================================================================
+# ERROR 4: Range error - negative angle (must be 0-180)
+# ============================================================================
+_cell.angle_beta                 -45.0
+
+# Valid angle for comparison
+_cell.angle_gamma                90.0
+
+# ============================================================================
+# ERROR 5: Enumeration error - invalid crystal system
+# ============================================================================
+_symmetry.crystal_system         dodecahedral
+
+# Atom sites with various errors
+loop_
+_atom_site.label
+_atom_site.type_symbol
+_atom_site.fract_x
+_atom_site.fract_y
+_atom_site.fract_z
+_atom_site.occupancy
+# Valid row for comparison
+  C1   C   0.1234   0.2345   0.3456   1.0
+# ============================================================================
+# ERROR 6: Range error - fract_x outside 0-1 range
+# ============================================================================
+  C2   C   1.5000   0.5678   0.6789   1.0
+# ============================================================================
+# ERROR 7: Range error - fract_y negative (must be 0-1)
+# ============================================================================
+  N1   N   0.7890   -0.1000   0.0123   1.0
+# ============================================================================
+# ERROR 8: Range error - occupancy greater than 1 (must be 0-1)
+# ============================================================================
+  O1   O   0.3333   0.6666   0.9999   2.5
+# ============================================================================
+# ERROR 9: Range error - negative occupancy (must be 0-1)
+# ============================================================================
+  H1   H   0.0001   0.0001   0.0001   -0.5

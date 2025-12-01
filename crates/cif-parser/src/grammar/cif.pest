@@ -12,12 +12,13 @@
 // syntax defined in a series of paragraphs here: https://www.iucr.org/resources/cif/spec/version1.1/cifsyntax#intro.
 // Then the PEG grammar of this file will use the CIF 1.1 specification.
 //
-// This means the formal grammar of this parser is a non-mutually-exclusive union of the CIF2.0 and CIF1.1 grammars.
+// This means the formal grammar (this file, and also refered to as the "grammar" of this parser, as distinct from its
+// "semantics") is a of the CIF2.0 and CIF1.1 grammars.
 // Where CIF2.0 grammars diverge, this parser handles them not here in the PEG but as "semantic" rules encoded in the
 // Parser. These semantic rules can be found in the parser because they are guarded by a check for the document's
 // CIF version. The bifurcation is further reflected in /tests/parser/grammar_tests and /tests/parser/semantic_tests.
 //
-// Naming conventions:
+// A note on naming conventions:
 // - CIF 2.0 EBNF uses hyphenated names (data-heading, container-code)
 // - Pest uses snake_case (data_heading, container_code)
 // - Production names match CIF 2.0 EBNF names (which differ from CIF 1.0) where possible.
