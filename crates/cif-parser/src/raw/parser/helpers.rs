@@ -80,51 +80,10 @@ fn offset_to_line_col(offset: usize) -> (usize, usize) {
     })
 }
 
-/// Extract the string content from a parse tree node
-///
-/// Use this when you need the text but want to keep the `Pair` around
-/// for span information in case of errors.
-///
-/// Note: Currently unused but available for future parser refactorings.
-#[allow(dead_code)]
+/// Extract the string content from a parse tree node.
 #[inline]
 pub(crate) fn extract_text(pair: &Pair<Rule>) -> String {
     pair.as_str().to_string()
-}
-
-/// Find the first pair matching a specific rule in an iterator
-///
-/// Returns the `Pair` itself (which includes span info), not just the text.
-/// This allows extracting location information when constructing errors.
-///
-/// Note: Currently unused but available for future parser refactorings.
-#[allow(dead_code)]
-pub(crate) fn find_first<'a>(
-    pairs: impl Iterator<Item = Pair<'a, Rule>>,
-    rule: Rule,
-) -> Option<Pair<'a, Rule>> {
-    pairs.into_iter().find(|p| p.as_rule() == rule)
-}
-
-/// Collect all pairs matching a specific rule
-///
-/// Note: Currently unused but available for future parser refactorings.
-#[allow(dead_code)]
-pub(crate) fn collect_rule<'a>(
-    pairs: impl Iterator<Item = Pair<'a, Rule>>,
-    rule: Rule,
-) -> Vec<Pair<'a, Rule>> {
-    pairs.filter(|p| p.as_rule() == rule).collect()
-}
-
-/// Extract (line, column) location from a parse tree node
-///
-/// Returns 1-indexed (line, column) using the cached line index.
-/// PERFORMANCE: O(log n) lookup using pre-built line index.
-#[allow(dead_code)]
-pub(crate) fn extract_location(pair: &Pair<Rule>) -> (usize, usize) {
-    let offset = pair.as_span().start();
-    offset_to_line_col(offset)
 }
 
 /// Extract a full [`Span`] from a PEST pair.

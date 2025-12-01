@@ -65,26 +65,3 @@ impl From<pest::error::Error<Rule>> for CifError {
         CifError::ParseError(format!("{err}"))
     }
 }
-
-impl CifError {
-    /// Create an InvalidStructure error with the given message (no location)
-    #[allow(dead_code)]
-    pub(crate) fn invalid_structure(msg: impl Into<String>) -> Self {
-        CifError::InvalidStructure {
-            message: msg.into(),
-            location: None,
-        }
-    }
-
-    /// Add location information to this error
-    #[allow(dead_code)]
-    pub(crate) fn at_location(self, line: usize, col: usize) -> Self {
-        match self {
-            CifError::InvalidStructure { message, .. } => CifError::InvalidStructure {
-                message,
-                location: Some((line, col)),
-            },
-            other => other, // Can't add location to ParseError or IoError
-        }
-    }
-}

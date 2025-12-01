@@ -2,9 +2,9 @@
 
 use crate::ast::Span;
 use crate::error::CifError;
-use crate::parser::helpers::{extract_span, extract_text};
-use crate::parser::loop_parser::parse_loop_raw;
-use crate::parser::value::parse_value_raw;
+use crate::raw::parser::helpers::{extract_span, extract_text};
+use crate::raw::parser::loop_parser::parse_loop_raw;
+use crate::raw::parser::value::parse_value_raw;
 use crate::raw::{RawBlock, RawDataItem, RawFrame, RawValue};
 use crate::Rule;
 use pest::iterators::Pair;

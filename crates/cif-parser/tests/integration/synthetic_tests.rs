@@ -2,7 +2,7 @@
 // Synthetic integration tests using inline CIF content strings
 // These test parser features without requiring real-world CIF files
 
-use cif_parser::Document;
+use cif_parser::{parse_string, parse_string_with_options, Document, ParseOptions, Version};
 
 #[test]
 fn test_parse_simple_cif() {
@@ -443,4 +443,44 @@ value1
     } else {
         panic!("Expected error");
     }
+}
+
+#[test]
+fn test_parse_empty_block() {
+    let cif = "data_test\n";
+    let doc = parse_string(cif).unwrap();
+    assert_eq!(doc.blocks.len(), 1);
+    assert_eq!(doc.blocks[0].name, "test");
+}
+
+#[test]
+fn test_parse_empty_file() {
+    let cif = "   \n  # comment\n  ";
+    let result = parse_string(cif);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap().blocks.len(), 0);
+}
+
+#[test]
+fn test_parse_with_upgrade_guidance() {
+    let cif = "data_test\n_item 'O''Brien'\n"; // CIF 1.1 with doubled quotes
+    let result =
+        parse_string_with_options(cif, ParseOptions::new().upgrade_guidance(true)).unwrap();
+
+    assert_eq!(result.document.version, Version::V1_1);
+
+    // Should report multiple CIF 2.0 violations
+    assert!(result.upgrade_issues.len() >= 2);
+
+    // First violation: missing magic header
+    assert_eq!(
+        result.upgrade_issues[0].rule_id,
+        cif_parser::rules::rule_ids::CIF2_MISSING_MAGIC_HEADER
+    );
+
+    // Second violation: doubled quotes
+    assert_eq!(
+        result.upgrade_issues[1].rule_id,
+        cif_parser::rules::rule_ids::CIF2_NO_DOUBLED_QUOTES
+    );
 }

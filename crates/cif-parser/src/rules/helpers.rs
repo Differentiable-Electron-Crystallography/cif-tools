@@ -37,25 +37,6 @@ pub fn extract_triple_quoted_content(raw: &str) -> String {
     }
 }
 
-/// Unescape doubled quotes in a CIF 1.1 quoted string.
-///
-/// CIF 1.1 allows `''` inside single-quoted strings and `""` inside
-/// double-quoted strings as escape sequences.
-#[allow(dead_code)]
-pub fn unescape_doubled_quotes(content: &str, quote_char: char) -> String {
-    let doubled = format!("{}{}", quote_char, quote_char);
-    content.replace(&doubled, &quote_char.to_string())
-}
-
-/// Check if a quoted string contains doubled-quote escaping.
-#[allow(dead_code)]
-pub fn has_doubled_quotes(raw: &str, quote_char: char) -> bool {
-    // First extract the content (without outer quotes)
-    let content = extract_quoted_content(raw);
-    let doubled = format!("{}{}", quote_char, quote_char);
-    content.contains(&doubled)
-}
-
 /// Parse an unquoted value to a CifValue.
 ///
 /// Handles:

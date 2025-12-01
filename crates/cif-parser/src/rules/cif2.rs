@@ -25,6 +25,16 @@ pub struct Cif2Rules;
 
 impl VersionRules for Cif2Rules {
     fn resolve(&self, raw: &RawDocument) -> Result<CifDocument, VersionViolation> {
+        // CIF 2.0: VALIDATION - magic header is required
+        if !raw.has_cif2_magic {
+            return Err(VersionViolation::new(
+                raw.span,
+                "CIF 2.0 files must start with the #\\#CIF_2.0 magic header",
+                rule_ids::CIF2_MISSING_MAGIC_HEADER,
+            )
+            .with_suggestion("Add '#\\#CIF_2.0' as the first line of the file"));
+        }
+
         let mut doc = CifDocument::new_with_version(CifVersion::V2_0);
         doc.span = raw.span;
 
@@ -244,6 +254,18 @@ impl VersionRules for Cif2Rules {
 
     fn collect_violations(&self, raw: &RawDocument) -> Vec<VersionViolation> {
         let mut violations = Vec::new();
+
+        // Check for missing magic header
+        if !raw.has_cif2_magic {
+            violations.push(
+                VersionViolation::new(
+                    raw.span,
+                    "CIF 2.0 files must start with the #\\#CIF_2.0 magic header",
+                    rule_ids::CIF2_MISSING_MAGIC_HEADER,
+                )
+                .with_suggestion("Add '#\\#CIF_2.0' as the first line of the file"),
+            );
+        }
 
         for block in &raw.blocks {
             // Check block name (skip for global_ blocks)

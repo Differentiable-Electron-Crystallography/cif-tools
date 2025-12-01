@@ -1,8 +1,8 @@
 //! Loop structure parsing logic - produces RawLoop.
 
 use crate::error::CifError;
-use crate::parser::helpers::{extract_span, extract_text};
-use crate::parser::value::parse_value_raw;
+use crate::raw::parser::helpers::{extract_span, extract_text};
+use crate::raw::parser::value::parse_value_raw;
 use crate::raw::{RawLoop, RawLoopTag, RawValue};
 use crate::Rule;
 use pest::iterators::Pair;

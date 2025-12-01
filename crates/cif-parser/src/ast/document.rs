@@ -183,7 +183,8 @@ impl CifDocument {
     /// assert_eq!(doc.blocks.len(), 1);
     /// ```
     pub fn parse(input: &str) -> Result<Self, CifError> {
-        crate::parser::document::parse_file(input)
+        let result = crate::parse_string_with_options(input, crate::ParseOptions::default())?;
+        Ok(result.document)
     }
 
     /// Parse a CIF document from a file

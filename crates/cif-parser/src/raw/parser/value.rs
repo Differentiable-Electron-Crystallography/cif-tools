@@ -4,7 +4,7 @@
 //! RawValue types. Version-specific interpretation happens in the rules module.
 
 use crate::error::CifError;
-use crate::parser::helpers::extract_span;
+use crate::raw::parser::helpers::extract_span;
 use crate::raw::{
     RawListSyntax, RawQuotedString, RawTableEntry, RawTableKey, RawTableSyntax, RawTextField,
     RawTripleQuoted, RawUnquoted, RawValue,

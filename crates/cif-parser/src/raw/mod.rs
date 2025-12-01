@@ -7,8 +7,10 @@
 //! # Module Organization
 //!
 //! - `ast` - Raw AST types (RawValue, RawBlock, RawDocument, etc.)
+//! - `parser` - Pass 1 parsing logic (PEST → Raw AST) [internal]
 
 pub mod ast;
+pub(crate) mod parser;
 
 // Re-export AST types for convenience
 pub use ast::*;
