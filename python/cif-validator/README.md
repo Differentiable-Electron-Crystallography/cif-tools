@@ -180,6 +180,27 @@ for error in result.errors:
     })
 ```
 
+## Examples
+
+Interactive Jupyter notebooks are provided in the `examples/` directory:
+
+- **basic_validation.ipynb** - Simple validation with inline dictionary, valid/invalid CIF examples
+- **diffbloch_validation.ipynb** - Validating electron diffraction CIF files against the diffBloch dictionary
+
+### Running the Examples
+
+Install the optional example dependencies:
+
+```bash
+# Using uv (recommended)
+uv sync --extra examples
+uv run jupyter lab examples/
+
+# Or using pip
+pip install cif-validator[examples]
+jupyter lab examples/
+```
+
 ## Development
 
 This package is part of the [cif-tools](https://github.com/Differentiable-Electron-Crystallography/cif-tools) monorepo.

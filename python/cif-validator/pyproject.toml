@@ -33,6 +33,9 @@ requires-python = ">=3.8,<3.13"
 dynamic = ["version"]
 dependencies = ["cif-parser"]
 
+[project.optional-dependencies]
+examples = ["jupyter"]
+
 [project.urls]
 Homepage = "https://github.com/Differentiable-Electron-Crystallography/cif-tools"
 Repository = "https://github.com/Differentiable-Electron-Crystallography/cif-tools"

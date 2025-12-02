@@ -233,7 +233,7 @@ test: rust-test python-test-all js-test
     @echo "✅ All tests passed"
 
 # Run all CI checks (for pre-commit hook)
-ci: rust-fmt-check rust-clippy python-fmt-check python-lint python-typecheck js-check-ci rust-test python-test-all js-test
+ci: rust-fmt-check rust-clippy python-sync python-fmt-check python-lint python-typecheck js-check-ci rust-test python-test-all js-test
     @echo "✅ All CI checks passed"
 
 # Build all release artifacts
