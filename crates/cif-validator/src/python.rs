@@ -93,6 +93,20 @@ pub enum PyErrorCategory {
 
 #[pymethods]
 impl PyErrorCategory {
+    #[getter]
+    fn name(&self) -> &'static str {
+        match self {
+            PyErrorCategory::UnknownDataName => "UnknownDataName",
+            PyErrorCategory::TypeError => "TypeError",
+            PyErrorCategory::RangeError => "RangeError",
+            PyErrorCategory::EnumerationError => "EnumerationError",
+            PyErrorCategory::MissingMandatory => "MissingMandatory",
+            PyErrorCategory::LoopStructure => "LoopStructure",
+            PyErrorCategory::LinkError => "LinkError",
+            PyErrorCategory::DictionaryError => "DictionaryError",
+        }
+    }
+
     fn __str__(&self) -> &'static str {
         match self {
             PyErrorCategory::UnknownDataName => "unknown data name",
@@ -154,6 +168,16 @@ pub enum PyWarningCategory {
 
 #[pymethods]
 impl PyWarningCategory {
+    #[getter]
+    fn name(&self) -> &'static str {
+        match self {
+            PyWarningCategory::MixedCategories => "MixedCategories",
+            PyWarningCategory::DeprecatedItem => "DeprecatedItem",
+            PyWarningCategory::Style => "Style",
+            PyWarningCategory::UnknownItem => "UnknownItem",
+        }
+    }
+
     fn __str__(&self) -> &'static str {
         match self {
             PyWarningCategory::MixedCategories => "mixed categories",
@@ -201,6 +225,15 @@ pub enum PyValidationMode {
 
 #[pymethods]
 impl PyValidationMode {
+    #[getter]
+    fn name(&self) -> &'static str {
+        match self {
+            PyValidationMode::Strict => "Strict",
+            PyValidationMode::Lenient => "Lenient",
+            PyValidationMode::Pedantic => "Pedantic",
+        }
+    }
+
     fn __str__(&self) -> &'static str {
         match self {
             PyValidationMode::Strict => "strict",

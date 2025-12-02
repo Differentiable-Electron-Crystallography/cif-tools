@@ -42,6 +42,14 @@ pub enum PyVersion {
 
 #[pymethods]
 impl PyVersion {
+    #[getter]
+    fn name(&self) -> &'static str {
+        match self {
+            PyVersion::V1_1 => "V1_1",
+            PyVersion::V2_0 => "V2_0",
+        }
+    }
+
     /// String representation
     fn __str__(&self) -> &'static str {
         match self {

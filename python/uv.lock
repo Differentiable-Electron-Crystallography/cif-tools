@@ -707,8 +707,17 @@ dependencies = [
     { name = "cif-parser" },
 ]
 
+[package.optional-dependencies]
+examples = [
+    { name = "jupyter" },
+]
+
 [package.metadata]
-requires-dist = [{ name = "cif-parser", editable = "cif-parser" }]
+requires-dist = [
+    { name = "cif-parser", editable = "cif-parser" },
+    { name = "jupyter", marker = "extra == 'examples'" },
+]
+provides-extras = ["examples"]
 
 [[package]]
 name = "click"
