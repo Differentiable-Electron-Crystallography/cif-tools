@@ -1,6 +1,6 @@
 # Monorepo Architecture
 
-cif-tools is a polyglot monorepo containing Rust libraries with bindings for Python and JavaScript/WebAssembly. The core parsing and validation logic is written in Rust, with language-specific bindings exposing the API to Python and JavaScript.
+cif-tools is a polyglot monorepo containing Rust libraries with bindings for Python and JavaScript/WebAssembly. The core parsing and validation logic is written in Rust, with language-specific bindings exposing the API to each target.
 
 ## Repository Structure
 
@@ -17,35 +17,32 @@ cif-tools/
 │   │       ├── wasm.rs        # WASM bindings
 │   │       ├── cif.pest       # PEG grammar
 │   │       ├── ast/           # AST types
-│   │       └── parser/        # Parser implementation
-│   └── cif-validator/
-│       ├── Cargo.toml
-│       └── src/
-│           ├── lib.rs         # Validation logic
-│           └── python.rs      # PyO3 bindings
+│   │       ├── raw/           # Raw AST (Pass 1)
+│   │       └── rules/         # Dialect rules (Pass 2)
+│   ├── cif-validator/
+│   │   └── src/
+│   │       ├── lib.rs         # Validation logic
+│   │       ├── python.rs      # PyO3 bindings
+│   │       └── wasm.rs        # WASM bindings
+│   └── drel-parser/
+│       └── src/               # dREL expression parsing
 ├── python/                    # Python workspace (uv)
 │   ├── pyproject.toml         # Workspace root
 │   ├── uv.lock                # Shared lockfile
-│   ├── .venv/                 # Shared virtual environment
 │   ├── cif-parser/            # cif-parser Python package
-│   │   ├── pyproject.toml
-│   │   ├── src/cif_parser/
-│   │   └── tests/
 │   └── cif-validator/         # cif-validator Python package
-│       ├── pyproject.toml
-│       ├── src/cif_validator/
-│       └── tests/
 ├── javascript/                # JavaScript package
 │   ├── package.json
-│   ├── tests/
-│   └── pkg-node/              # WASM build output (generated)
+│   └── pkg/                   # WASM build output (generated)
 ├── fixtures/                  # Shared test fixtures
 └── docs/
 ```
 
+---
+
 ## Rust Workspace
 
-The workspace is defined in the root `Cargo.toml`:
+Defined in root `Cargo.toml`:
 
 ```toml
 [workspace]
@@ -53,95 +50,92 @@ resolver = "2"
 members = [
     "crates/cif-parser",
     "crates/cif-validator",
+    "crates/drel-parser",
 ]
 ```
 
 ### Crates
 
-| Crate | Description | Status |
-|-------|-------------|--------|
-| `cif-parser` | Core CIF parsing (syntax, AST, semantic rules) | Implemented |
-| `cif-validator` | DDLm-based CIF validation | In Development |
+| Crate | Description |
+|-------|-------------|
+| `cif-parser` | Core CIF parsing (grammar, AST, dialect rules) |
+| `cif-validator` | DDLm-based CIF validation |
+| `drel-parser` | dREL expression parsing for dictionaries |
 
-### Shared Configuration
-
-The workspace defines shared settings in `[workspace.package]` and common dependencies in `[workspace.dependencies]`. Crates inherit these:
-
-```toml
-[package]
-version.workspace = true
-edition.workspace = true
-```
+---
 
 ## Language Bindings
 
-Each Rust crate can produce bindings for multiple targets:
+Each Rust crate can produce bindings for multiple targets via feature flags:
 
-### Python (via PyO3 + Maturin + uv Workspace)
+```toml
+[features]
+default = []
+python = ["pyo3"]
+wasm = ["wasm-bindgen"]
+```
 
-The Python bindings use a **uv workspace** to manage multiple Python packages that each wrap a Rust crate.
+### Python (PyO3 + Maturin)
 
-**Architecture:**
+Architecture:
+```
+Python code
+    ↓
+PyO3 wrapper classes (src/python.rs)
+    ↓
+Core Rust library
+```
+
+**Wrapper pattern**: Each Rust type has a corresponding Python class:
+- `CifDocument` → `Document`
+- `CifBlock` → `Block`
+- `CifLoop` → `Loop`
+- `CifValue` → `Value`
+
+**Python workspace** (uv-managed):
 ```
 python/
-├── pyproject.toml              # Workspace root (defines members)
-├── uv.lock                     # Single lockfile for all packages
-├── .venv/                      # Shared virtual environment
+├── pyproject.toml              # Workspace root
 ├── cif-parser/
 │   ├── pyproject.toml          # Points to ../../crates/cif-parser
 │   ├── src/cif_parser/
 │   │   ├── __init__.py         # Re-exports from native module
 │   │   ├── __init__.pyi        # Type stubs
-│   │   ├── _cif_parser.pyi     # Native module type stubs
 │   │   └── py.typed            # PEP 561 marker
 │   └── tests/
 └── cif-validator/
-    ├── pyproject.toml          # Points to ../../crates/cif-validator
-    ├── src/cif_validator/
-    │   ├── __init__.py
-    │   ├── __init__.pyi
-    │   ├── _cif_validator.pyi
-    │   └── py.typed
-    └── tests/
+    └── ...
 ```
 
-**Key Configuration:**
+### JavaScript/WASM (wasm-bindgen + wasm-pack)
 
-Each Python package's `pyproject.toml` points to its Rust crate:
-```toml
-[tool.maturin]
-features = ["pyo3/extension-module", "python"]
-python-source = "src"
-module-name = "cif_parser._cif_parser"
-manifest-path = "../../crates/cif-parser/Cargo.toml"
+Architecture:
+```
+JavaScript/TypeScript
+    ↓
+wasm-bindgen glue (generated)
+    ↓
+WASM module (compiled from src/wasm.rs)
+    ↓
+Core Rust library
 ```
 
-The workspace root defines members and allows packages to depend on each other:
-```toml
-[tool.uv.workspace]
-members = ["cif-parser", "cif-validator"]
+**Wrapper pattern**: Each Rust type has a corresponding JS class:
+- `CifDocument` → `JsCifDocument`
+- `CifBlock` → `JsCifBlock`
+- `CifLoop` → `JsCifLoop`
+- `CifValue` → `JsCifValue`
 
-[tool.uv.sources]
-cif-parser = { workspace = true }
-cif-validator = { workspace = true }
-```
+**Build targets**:
+- `web` - ES modules for browsers
+- `nodejs` - CommonJS for Node.js
+- `bundler` - For Webpack, Rollup, etc.
 
-**Benefits of this setup:**
-- Single `uv sync` installs all packages in editable mode
-- Shared lockfile ensures consistent dependencies across packages
-- Packages can depend on each other (e.g., `cif-validator` depends on `cif-parser`)
-- Dev tools (pytest, mypy, black, ruff) installed once at workspace level
-- Each package builds independently with maturin
-
-### JavaScript/WASM (via wasm-bindgen + wasm-pack)
-
-- Bindings defined in `src/wasm.rs` within each crate
-- Built with `wasm-pack` to `javascript/pkg-node/`
-- Supports multiple targets: nodejs, web, bundler
+---
 
 ## Build System
 
-All builds are orchestrated through `just` (install: `cargo install just` or `brew install just`).
+All builds are orchestrated through `just` (install: `cargo install just`).
 
 ### Quick Reference
 
@@ -149,7 +143,6 @@ All builds are orchestrated through `just` (install: `cargo install just` or `br
 just --list              # Show all recipes
 just setup               # Install dependencies
 just ci                  # Run all CI checks
-just build-all           # Build all artifacts
 ```
 
 ### Rust
@@ -158,8 +151,6 @@ just build-all           # Build all artifacts
 just rust-fmt            # Format
 just rust-clippy         # Lint
 just rust-test           # Test workspace
-just rust-test-parser    # Test parser only
-just check-rust          # All Rust checks
 ```
 
 ### Python
@@ -169,61 +160,79 @@ just check-rust          # All Rust checks
 just python-sync                    # Install all packages (uv sync)
 
 # Build native extensions
-just python-develop cif-parser      # Build cif-parser extension
-just python-develop cif-validator   # Build cif-validator extension
-just python-develop-all             # Build all extensions
+just python-develop cif-parser      # Build single package
+just python-develop-all             # Build all packages
 
 # Testing
 just python-test cif-parser         # Test specific package
 just python-test-all                # Test all packages
 
-# Build wheels
-just python-build cif-parser        # Build wheel for specific package
-just python-build-all               # Build wheels for all packages
-
 # Code quality
 just python-fmt                     # Format with black
 just python-lint                    # Lint with ruff
 just python-typecheck               # Type check with mypy
-just check-python                   # All Python checks
 ```
 
-### JavaScript
+### JavaScript/WASM
 
 ```bash
 just wasm-build          # Build for Node.js
 just wasm-build-web      # Build for web
 just wasm-build-bundler  # Build for bundlers
 just js-test             # Run tests
-just check-js            # All JS checks
 ```
 
-## Package Outputs
+---
 
-| Package | Language | Registry | Source |
-|---------|----------|----------|--------|
-| `cif-parser` | Rust | crates.io | `crates/cif-parser` |
-| `cif-parser` | Python | PyPI | `python/cif-parser/` |
-| `@cif-parser/node` | JavaScript | npm | `javascript/` |
-| `cif-validator` | Rust | crates.io | `crates/cif-validator` |
-| `cif-validator` | Python | PyPI | `python/cif-validator/` |
-| `cif-validator` | JavaScript | npm | (planned) |
+## API Design Principles
 
-## CI/CD
+### Pythonic / JavaScript-idiomatic
 
-All CI workflows use `just` recipes to ensure parity between local and CI builds:
+Both bindings follow language conventions:
 
-- **test.yml** - Runs `just rust-test`, `just python-test`, `just js-test`
-- **lint-and-format.yml** - Runs `just ci`
-- **publish-python.yml** - Runs `just python-build`, `just python-sdist`
-- **publish-npm.yml** - Runs `just wasm-build-all`
+| Aspect | Python | JavaScript |
+|--------|--------|------------|
+| Naming | `snake_case` | `camelCase` |
+| Properties | `loop.tags` | `loop.tags` |
+| Length | `len(loop)` | `loop.numRows` |
+| Iteration | `for row in loop:` | manual loop |
+| Type check | `value.is_numeric` (property) | `value.is_numeric()` (method) |
+
+### Consistent Patterns
+
+Both languages share:
+- Wrapper classes for all AST types
+- `get_row_dict()` for loop row access
+- `get_column()` for column extraction
+- Type-checking methods/properties
+- Error messages with source locations
+
+### Example: Loop Access
+
+**Python:**
+```python
+loop = block.find_loop("_atom_site_label")
+for row in loop:
+    print(row["_atom_site_label"])
+```
+
+**JavaScript:**
+```javascript
+const loop = block.find_loop("_atom_site_label");
+for (let i = 0; i < loop.numRows; i++) {
+    const row = loop.get_row_dict(i);
+    console.log(row._atom_site_label);
+}
+```
+
+---
 
 ## Development Workflow
 
 ### Initial Setup
 
 ```bash
-git clone https://github.com/Differentiable-Electron-Crystallography/cif-tools
+git clone https://github.com/anthropics/cif-tools
 cd cif-tools
 just setup
 ```
@@ -231,16 +240,18 @@ just setup
 ### Making Changes
 
 1. Edit Rust source in `crates/*/src/`
-2. Run `just check-rust` to verify
-3. Run `just python-develop <package>` to rebuild Python extension (e.g., `just python-develop cif-parser`)
-4. Run `just python-test <package>` to test Python bindings (e.g., `just python-test cif-parser`)
-5. Run `just js-test` to test JavaScript bindings
+2. Run `just rust-test` to verify Rust
+3. Run `just python-develop <package>` to rebuild Python extension
+4. Run `just python-test <package>` to test Python
+5. Run `just js-test` to test JavaScript
 
 ### Pre-commit
 
 ```bash
 just ci
 ```
+
+---
 
 ## Adding a New Crate
 
@@ -250,13 +261,13 @@ just ci
 mkdir -p crates/<name>/src
 ```
 
-Add to workspace members in root `Cargo.toml`:
+Add to workspace in root `Cargo.toml`:
 ```toml
 [workspace]
 members = [
     "crates/cif-parser",
     "crates/cif-validator",
-    "crates/<name>",  # Add new crate
+    "crates/<name>",
 ]
 ```
 
@@ -269,6 +280,7 @@ edition.workspace = true
 
 [dependencies]
 pyo3 = { workspace = true, optional = true }
+wasm-bindgen = { workspace = true, optional = true }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -276,19 +288,10 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = []
 python = ["pyo3"]
+wasm = ["wasm-bindgen"]
 ```
 
-### 2. Add Python Bindings (Optional)
-
-Create `crates/<name>/src/python.rs` with PyO3 bindings.
-
-Add to `crates/<name>/src/lib.rs`:
-```rust
-#[cfg(feature = "python")]
-pub mod python;
-```
-
-### 3. Create Python Package
+### 2. Add Python Package
 
 Create directory structure:
 ```
@@ -297,7 +300,6 @@ python/<name>/
 ├── src/<name_underscored>/
 │   ├── __init__.py
 │   ├── __init__.pyi
-│   ├── _<name_underscored>.pyi
 │   └── py.typed
 └── tests/
 ```
@@ -310,7 +312,7 @@ build-backend = "maturin"
 
 [project]
 name = "<name>"
-requires-python = ">=3.8,<3.13"
+requires-python = ">=3.8"
 dynamic = ["version"]
 
 [tool.maturin]
@@ -320,30 +322,64 @@ module-name = "<name_underscored>._<name_underscored>"
 manifest-path = "../../crates/<name>/Cargo.toml"
 ```
 
-### 4. Update Workspace Configuration
+### 3. Update Workspace
 
 Add to `python/pyproject.toml`:
 ```toml
 [tool.uv.workspace]
 members = ["cif-parser", "cif-validator", "<name>"]
-
-[tool.uv.sources]
-<name> = { workspace = true }
 ```
 
-Add to `justfile`:
-```just
-python_packages := "cif-parser cif-validator <name>"
-```
-
-### 5. Build and Test
+### 4. Build and Test
 
 ```bash
-cd python && uv sync --extra dev
+just python-sync
 just python-develop <name>
 just python-test <name>
 ```
 
-### 6. Update CI Workflows
+---
 
-Update CI workflows to include the new package as needed.
+## Package Outputs
+
+| Package | Language | Registry | Source |
+|---------|----------|----------|--------|
+| `cif-parser` | Rust | crates.io | `crates/cif-parser` |
+| `cif-parser` | Python | PyPI | `python/cif-parser/` |
+| `@cif-tools/parser` | JavaScript | npm | `javascript/` |
+| `cif-validator` | Rust | crates.io | `crates/cif-validator` |
+| `cif-validator` | Python | PyPI | `python/cif-validator/` |
+
+---
+
+## CI/CD
+
+All CI workflows use `just` recipes:
+
+- **test.yml** - `just rust-test`, `just python-test-all`, `just js-test`
+- **lint.yml** - `just ci`
+- **publish-python.yml** - `just python-build-all`
+- **publish-npm.yml** - `just wasm-build-all`
+
+---
+
+## Technology Choices
+
+| Component | Technology | Rationale |
+|-----------|------------|-----------|
+| Core language | Rust | Performance, safety, WASM target |
+| Python bindings | PyO3 + Maturin | Industry standard, ergonomic API |
+| WASM bindings | wasm-bindgen + wasm-pack | De facto standard for Rust→WASM |
+| Python package manager | uv | Fast, modern, workspace support |
+| Build orchestration | just | Simple, cross-platform task runner |
+| Grammar parser | PEST | PEG grammars map well to CIF spec |
+
+---
+
+## References
+
+- [PyO3 User Guide](https://pyo3.rs/)
+- [Maturin User Guide](https://www.maturin.rs/)
+- [wasm-bindgen Documentation](https://rustwasm.github.io/wasm-bindgen/)
+- [wasm-pack Documentation](https://rustwasm.github.io/wasm-pack/)
+- [uv Documentation](https://docs.astral.sh/uv/)
