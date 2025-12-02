@@ -227,6 +227,90 @@ for (let i = 0; i < loop.numRows; i++) {
 
 ---
 
+## Testing
+
+### Shared Fixtures
+
+The `/fixtures/` directory contains test CIF files used by integration tests across Rust, Python, and JavaScript. This ensures all language bindings behave consistently and parse CIF files identically.
+
+```
+fixtures/
+├── simple.cif                    # Basic CIF with unknown (?) and not-applicable (.) values
+├── loops.cif                     # Multiple loops (atom sites, bonds)
+├── complex.cif                   # Save frames, multiple blocks
+├── pycifrw_xanthine.cif          # Uncertainty values like 10.01(11)
+├── crystalmaker_LuAG.cif         # High precision uncertainties like 11.910400(4)
+├── cif2_lists.cif                # CIF 2.0 list syntax
+├── cif2_tables.cif               # CIF 2.0 table syntax
+├── cif2_comprehensive.cif        # All CIF 2.0 features combined
+├── validation/
+│   ├── test_validation.dic       # DDLm dictionary for validation testing
+│   ├── valid_structure.cif       # CIF that passes validation
+│   └── invalid_structure.cif     # CIF with intentional validation errors
+└── example_cifs/                 # Real-world CIF samples
+```
+
+### Cross-Language Test Parity
+
+Integration tests in each language make the same assertions against the same fixtures:
+
+| Package | Test Location |
+|---------|---------------|
+| cif-parser (Python) | `python/cif-parser/tests/test_integration.py` |
+| cif-parser (JavaScript) | `javascript/packages/cif-parser/tests/integration.test.cjs` |
+| cif-validator (Python) | `python/cif-validator/tests/test_integration.py` |
+| cif-validator (JavaScript) | `javascript/packages/cif-validator/tests/integration.test.cjs` |
+
+**Example: Testing loop access in both languages**
+
+Python:
+```python
+def test_loops_atom_site_loop(loops_cif):
+    doc = cif_parser.parse_file(str(loops_cif))
+    block = doc.first_block()
+
+    atom_loop = block.find_loop("_atom_site_label")
+    assert len(atom_loop) == 5  # C1, C2, N1, O1, O2
+
+    first_label = atom_loop.get_by_tag(0, "_atom_site_label")
+    assert first_label.text == "C1"
+```
+
+JavaScript:
+```javascript
+it('should access atom site loop', () => {
+    const content = loadFixture('loops.cif');
+    const doc = parse(content);
+    const block = doc.first_block();
+
+    const atomLoop = block.find_loop('_atom_site_label');
+    assert.strictEqual(atomLoop.numRows, 5); // C1, C2, N1, O1, O2
+
+    const firstLabel = atomLoop.get_value_by_tag(0, '_atom_site_label');
+    assert.strictEqual(firstLabel.text_value, 'C1');
+});
+```
+
+### Running Tests
+
+```bash
+# All tests
+just ci
+
+# Rust tests
+just rust-test
+
+# Python tests
+just python-test cif-parser
+just python-test cif-validator
+just python-test-all
+
+# JavaScript tests
+just js-test
+```
+
+---
+
 ## Development Workflow
 
 ### Initial Setup
