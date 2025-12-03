@@ -196,8 +196,8 @@ js-check:
 js-check-ci:
     cd {{js_dir}} && npx @biomejs/biome ci .
 
-# Run JavaScript tests (builds parser WASM first)
-js-test: wasm-build-parser
+# Run JavaScript tests (builds parser and validator WASM first)
+js-test: wasm-build
     cd {{js_dir}} && npm test --workspaces --if-present
 
 # Start Vite demo dev server
