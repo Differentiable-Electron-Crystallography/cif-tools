@@ -1,4 +1,6 @@
 data_urea
+# Minimal diffBloch-ready CIF (converted from PETS output)
+
 _symmetry_cell_setting                   tetragonal
 _symmetry_space_group_name_H-M           'P -4 21 m'
 _symmetry_space_group_name_Hall          'P -4 2ab'
@@ -23,6 +25,17 @@ _cell_angle_alpha                        90
 _cell_angle_beta                         90
 _cell_angle_gamma                        90
 _cell_volume                             149.48(3)
+
+# diffBloch measurement parameters (REQUIRED - converted from PETS format)
+_diffrn_measurement_details
+;
+data collection geometry: continuous rotation
+dstarmax:  1.900
+RC width:  0.00490
+mosaicity:  0.070
+rotation axis position:  272.325
+reflection size:    5.000
+;
 
 loop_
  _atom_site_label
