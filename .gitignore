@@ -60,3 +60,6 @@ yarn-error.log*
 
 # Keep Cargo.lock for applications, remove for libraries
 # Cargo.lock
+
+# External repos cloned for development
+python/cif-validator/examples/diffBloch-repo/

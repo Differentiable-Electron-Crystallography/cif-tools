@@ -189,17 +189,25 @@ Interactive Jupyter notebooks are provided in the `examples/` directory:
 
 ### Running the Examples
 
-Install the optional example dependencies:
+From the **monorepo root** (`cif-tools/`):
 
 ```bash
-# Using uv (recommended)
-uv sync --extra examples
-uv run jupyter lab examples/
-
-# Or using pip
-pip install cif-validator[examples]
-jupyter lab examples/
+# Build and run examples (recommended)
+just python-examples cif-validator
 ```
+
+Or manually from this directory (`python/cif-validator/`):
+
+```bash
+# Step 1: Build the native extension (required - this compiles the Rust code)
+uv run maturin develop
+
+# Step 2: Launch Jupyter
+uv run --extra examples jupyter lab examples/
+```
+
+> **Note:** The `maturin develop` step is required to compile the Rust extension.
+> Without this, you'll get `ModuleNotFoundError: No module named 'cif_validator'`.
 
 ## Development
 

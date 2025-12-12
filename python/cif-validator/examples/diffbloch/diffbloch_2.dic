@@ -1,0 +1,1378 @@
+#\#CIF_2.0
+##############################################################################
+#                                                                            #
+#                       diffBloch VALIDATION DICTIONARY                      #
+#                                                                            #
+#  This dictionary defines the CIF data items required for diffBloch         #
+#  dynamical electron diffraction refinement.                                #
+#                                                                            #
+#  Created by systematic analysis of diffBloch source code:                  #
+#    - main.py -> asu_refinement.py                                          #
+#    - atoms.py: load_structure_asymmetric_unit()                            #
+#    - rotation_dataset.py: get_exp_ints(), extract_data_params(),           #
+#      generate_ub_matrix(), generate_crystal_orientations()                 #
+#                                                                            #
+##############################################################################
+
+data_DIFFBLOCH_DIC
+
+    _dictionary.title            DIFFBLOCH_DIC
+    _dictionary.class            Instance
+    _dictionary.version          2.0.0
+    _dictionary.date             2025-12-03
+    _dictionary.uri              https://github.com/Differentiable-Electron-Crystallography/diffBloch
+    _dictionary.ddl_conformance  4.2.0
+    _dictionary.namespace        DiffBloch
+    _description.text
+;
+    Dictionary of CIF data items required for diffBloch dynamical electron
+    diffraction structure refinement.
+
+    diffBloch reads CIF data from two sources:
+    1. Structure file: Crystal structure with atomic positions and symmetry
+    2. PETS file: Experimental diffraction data with orientations and intensities
+
+    This dictionary validates that input CIF files contain the required items
+    for successful diffBloch execution.
+;
+
+##############################################################################
+#                                                                            #
+#                            CELL CATEGORY                                   #
+#                                                                            #
+#  Unit cell parameters - Required for coordinate transformations            #
+#  Read by: rotation_dataset.py generate_Binv()                              #
+#                                                                            #
+##############################################################################
+
+save_CELL
+
+    _definition.id               CELL
+    _definition.scope            Category
+    _definition.class            Set
+    _definition.update           2025-12-03
+    _name.category_id            DIFFBLOCH_DIC
+    _name.object_id              CELL
+
+    _description.text
+;
+    Unit cell parameters defining the crystal lattice.
+    Used by diffBloch for coordinate transformations between
+    fractional and Cartesian coordinates.
+;
+
+save_
+
+save_cell.length_a
+
+    _definition.id               '_cell.length_a'
+    _definition.update           2025-12-03
+    _name.category_id            cell
+    _name.object_id              length_a
+    _alias.definition_id         '_cell_length_a'
+
+    _description.text
+;
+    Length of the unit cell vector a in angstroms.
+    Used in generate_Binv() for B matrix calculation.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _enumeration.range           0.0:
+
+    _units.code                  angstroms
+
+save_
+
+save_cell.length_b
+
+    _definition.id               '_cell.length_b'
+    _definition.update           2025-12-03
+    _name.category_id            cell
+    _name.object_id              length_b
+    _alias.definition_id         '_cell_length_b'
+
+    _description.text
+;
+    Length of the unit cell vector b in angstroms.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _enumeration.range           0.0:
+
+    _units.code                  angstroms
+
+save_
+
+save_cell.length_c
+
+    _definition.id               '_cell.length_c'
+    _definition.update           2025-12-03
+    _name.category_id            cell
+    _name.object_id              length_c
+    _alias.definition_id         '_cell_length_c'
+
+    _description.text
+;
+    Length of the unit cell vector c in angstroms.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _enumeration.range           0.0:
+
+    _units.code                  angstroms
+
+save_
+
+save_cell.angle_alpha
+
+    _definition.id               '_cell.angle_alpha'
+    _definition.update           2025-12-03
+    _name.category_id            cell
+    _name.object_id              angle_alpha
+    _alias.definition_id         '_cell_angle_alpha'
+
+    _description.text
+;
+    Angle between unit cell vectors b and c in degrees.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _enumeration.range           0.0:180.0
+
+    _units.code                  degrees
+
+save_
+
+save_cell.angle_beta
+
+    _definition.id               '_cell.angle_beta'
+    _definition.update           2025-12-03
+    _name.category_id            cell
+    _name.object_id              angle_beta
+    _alias.definition_id         '_cell_angle_beta'
+
+    _description.text
+;
+    Angle between unit cell vectors a and c in degrees.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _enumeration.range           0.0:180.0
+
+    _units.code                  degrees
+
+save_
+
+save_cell.angle_gamma
+
+    _definition.id               '_cell.angle_gamma'
+    _definition.update           2025-12-03
+    _name.category_id            cell
+    _name.object_id              angle_gamma
+    _alias.definition_id         '_cell_angle_gamma'
+
+    _description.text
+;
+    Angle between unit cell vectors a and b in degrees.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _enumeration.range           0.0:180.0
+
+    _units.code                  degrees
+
+save_
+
+save_cell.volume
+
+    _definition.id               '_cell.volume'
+    _definition.update           2025-12-03
+    _name.category_id            cell
+    _name.object_id              volume
+    _alias.definition_id         '_cell_volume'
+
+    _description.text
+;
+    Volume of the unit cell in cubic angstroms.
+    Used in generate_Binv() for B matrix calculation.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _enumeration.range           0.0:
+
+    _units.code                  angstroms_cubed
+
+save_
+
+##############################################################################
+#                                                                            #
+#                          SYMMETRY CATEGORY                                 #
+#                                                                            #
+#  Space group information - REQUIRED by atoms.py                            #
+#  Read by: atoms.py load_structure_asymmetric_unit()                        #
+#                                                                            #
+##############################################################################
+
+save_SYMMETRY
+
+    _definition.id               SYMMETRY
+    _definition.scope            Category
+    _definition.class            Set
+    _definition.update           2025-12-03
+    _name.category_id            DIFFBLOCH_DIC
+    _name.object_id              SYMMETRY
+
+    _description.text
+;
+    Symmetry information for the crystal structure.
+    The Hermann-Mauguin space group symbol is REQUIRED by diffBloch.
+;
+
+save_
+
+save_symmetry.space_group_name_H-M
+
+    _definition.id               '_symmetry.space_group_name_H-M'
+    _definition.update           2025-12-03
+    _name.category_id            symmetry
+    _name.object_id              space_group_name_H-M
+    _alias.definition_id         '_symmetry_space_group_name_H-M'
+
+    _description.text
+;
+    Hermann-Mauguin space group symbol.
+
+    REQUIRED: diffBloch raises ValueError if this tag is missing.
+    Used to determine symmetry operations for ASU expansion.
+
+    Source: atoms.py line 577-580:
+      if '_symmetry_space_group_name_h-m' not in block:
+          raise ValueError("No Hermann-Mauguin (HM) notation found...")
+;
+
+    _type.purpose                State
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Code
+
+save_
+
+##############################################################################
+#                                                                            #
+#                         ATOM_SITE CATEGORY                                 #
+#                                                                            #
+#  Atomic positions in the asymmetric unit                                   #
+#  Read by: atoms.py load_structure_asymmetric_unit()                        #
+#                                                                            #
+##############################################################################
+
+save_ATOM_SITE
+
+    _definition.id               ATOM_SITE
+    _definition.scope            Category
+    _definition.class            Loop
+    _definition.update           2025-12-03
+    _name.category_id            DIFFBLOCH_DIC
+    _name.object_id              ATOM_SITE
+
+    _description.text
+;
+    Atomic site data for atoms in the asymmetric unit.
+    diffBloch uses ASE's parse_cif to read atomic positions.
+;
+
+    _category.key_id             '_atom_site.label'
+
+save_
+
+save_atom_site.label
+
+    _definition.id               '_atom_site.label'
+    _definition.update           2025-12-03
+    _name.category_id            atom_site
+    _name.object_id              label
+    _alias.definition_id         '_atom_site_label'
+
+    _description.text
+;
+    Unique identifier for each atom site (e.g., 'C1', 'N2', 'O3').
+    Used by diffBloch to track atoms during refinement.
+;
+
+    _type.purpose                Key
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Code
+
+save_
+
+save_atom_site.type_symbol
+
+    _definition.id               '_atom_site.type_symbol'
+    _definition.update           2025-12-03
+    _name.category_id            atom_site
+    _name.object_id              type_symbol
+    _alias.definition_id         '_atom_site_type_symbol'
+
+    _description.text
+;
+    Element symbol for the atom at this site.
+    Used to filter hydrogen atoms when cfg.data.load_hydrogens=False.
+;
+
+    _type.purpose                State
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Code
+
+save_
+
+save_atom_site.fract_x
+
+    _definition.id               '_atom_site.fract_x'
+    _definition.update           2025-12-03
+    _name.category_id            atom_site
+    _name.object_id              fract_x
+    _alias.definition_id         '_atom_site_fract_x'
+
+    _description.text
+;
+    Fractional x coordinate of the atom site.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+save_
+
+save_atom_site.fract_y
+
+    _definition.id               '_atom_site.fract_y'
+    _definition.update           2025-12-03
+    _name.category_id            atom_site
+    _name.object_id              fract_y
+    _alias.definition_id         '_atom_site_fract_y'
+
+    _description.text
+;
+    Fractional y coordinate of the atom site.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+save_
+
+save_atom_site.fract_z
+
+    _definition.id               '_atom_site.fract_z'
+    _definition.update           2025-12-03
+    _name.category_id            atom_site
+    _name.object_id              fract_z
+    _alias.definition_id         '_atom_site_fract_z'
+
+    _description.text
+;
+    Fractional z coordinate of the atom site.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+save_
+
+save_atom_site.thermal_displace_type
+
+    _definition.id               '_atom_site.thermal_displace_type'
+    _definition.update           2025-12-03
+    _name.category_id            atom_site
+    _name.object_id              thermal_displace_type
+    _alias.definition_id         '_atom_site_thermal_displace_type'
+
+    _description.text
+;
+    Type of thermal displacement parameters for this atom.
+    'Uiso' for isotropic, 'Uani' for anisotropic.
+
+    If not present, diffBloch defaults to Uiso=0 for all atoms.
+;
+
+    _type.purpose                State
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Code
+
+    loop_
+      _enumeration_set.state
+         Uiso
+         Uani
+
+save_
+
+save_atom_site.U_iso_or_equiv
+
+    _definition.id               '_atom_site.U_iso_or_equiv'
+    _definition.update           2025-12-03
+    _name.category_id            atom_site
+    _name.object_id              U_iso_or_equiv
+    _alias.definition_id         '_atom_site_U_iso_or_equiv'
+
+    _description.text
+;
+    Isotropic atomic displacement parameter or equivalent isotropic
+    displacement for atoms with anisotropic parameters.
+    Units: Angstrom^2
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _enumeration.range           0.0:
+
+    _units.code                  angstroms_squared
+
+save_
+
+##############################################################################
+#                                                                            #
+#                      ATOM_SITE_ANISO CATEGORY                              #
+#                                                                            #
+#  Anisotropic displacement parameters                                       #
+#  Read by: atoms.py construct_Uij_matrix()                                  #
+#                                                                            #
+##############################################################################
+
+save_ATOM_SITE_ANISO
+
+    _definition.id               ATOM_SITE_ANISO
+    _definition.scope            Category
+    _definition.class            Loop
+    _definition.update           2025-12-03
+    _name.category_id            DIFFBLOCH_DIC
+    _name.object_id              ATOM_SITE_ANISO
+
+    _description.text
+;
+    Anisotropic atomic displacement parameters (ADPs).
+    Only required when thermal_displace_type is 'Uani'.
+;
+
+    _category.key_id             '_atom_site_aniso.label'
+
+save_
+
+save_atom_site_aniso.label
+
+    _definition.id               '_atom_site_aniso.label'
+    _definition.update           2025-12-03
+    _name.category_id            atom_site_aniso
+    _name.object_id              label
+    _alias.definition_id         '_atom_site_aniso_label'
+
+    _description.text
+;
+    Atom label linking to _atom_site.label.
+;
+
+    _type.purpose                Key
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Code
+
+save_
+
+save_atom_site_aniso.U_11
+
+    _definition.id               '_atom_site_aniso.U_11'
+    _definition.update           2025-12-03
+    _name.category_id            atom_site_aniso
+    _name.object_id              U_11
+    _alias.definition_id         '_atom_site_aniso_U_11'
+
+    _description.text
+;
+    Element U[1][1] of the anisotropic displacement tensor.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _units.code                  angstroms_squared
+
+save_
+
+save_atom_site_aniso.U_22
+
+    _definition.id               '_atom_site_aniso.U_22'
+    _definition.update           2025-12-03
+    _name.category_id            atom_site_aniso
+    _name.object_id              U_22
+    _alias.definition_id         '_atom_site_aniso_U_22'
+
+    _description.text
+;
+    Element U[2][2] of the anisotropic displacement tensor.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _units.code                  angstroms_squared
+
+save_
+
+save_atom_site_aniso.U_33
+
+    _definition.id               '_atom_site_aniso.U_33'
+    _definition.update           2025-12-03
+    _name.category_id            atom_site_aniso
+    _name.object_id              U_33
+    _alias.definition_id         '_atom_site_aniso_U_33'
+
+    _description.text
+;
+    Element U[3][3] of the anisotropic displacement tensor.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _units.code                  angstroms_squared
+
+save_
+
+save_atom_site_aniso.U_12
+
+    _definition.id               '_atom_site_aniso.U_12'
+    _definition.update           2025-12-03
+    _name.category_id            atom_site_aniso
+    _name.object_id              U_12
+    _alias.definition_id         '_atom_site_aniso_U_12'
+
+    _description.text
+;
+    Element U[1][2] of the anisotropic displacement tensor.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _units.code                  angstroms_squared
+
+save_
+
+save_atom_site_aniso.U_13
+
+    _definition.id               '_atom_site_aniso.U_13'
+    _definition.update           2025-12-03
+    _name.category_id            atom_site_aniso
+    _name.object_id              U_13
+    _alias.definition_id         '_atom_site_aniso_U_13'
+
+    _description.text
+;
+    Element U[1][3] of the anisotropic displacement tensor.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _units.code                  angstroms_squared
+
+save_
+
+save_atom_site_aniso.U_23
+
+    _definition.id               '_atom_site_aniso.U_23'
+    _definition.update           2025-12-03
+    _name.category_id            atom_site_aniso
+    _name.object_id              U_23
+    _alias.definition_id         '_atom_site_aniso_U_23'
+
+    _description.text
+;
+    Element U[2][3] of the anisotropic displacement tensor.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _units.code                  angstroms_squared
+
+save_
+
+##############################################################################
+#                                                                            #
+#                    DIFFRN_ORIENT_MATRIX CATEGORY                           #
+#                                                                            #
+#  UB orientation matrix from PETS                                           #
+#  Read by: rotation_dataset.py generate_ub_matrix()                         #
+#                                                                            #
+##############################################################################
+
+save_DIFFRN_ORIENT_MATRIX
+
+    _definition.id               DIFFRN_ORIENT_MATRIX
+    _definition.scope            Category
+    _definition.class            Set
+    _definition.update           2025-12-03
+    _name.category_id            DIFFBLOCH_DIC
+    _name.object_id              DIFFRN_ORIENT_MATRIX
+
+    _description.text
+;
+    UB orientation matrix from PETS data processing.
+    Defines the relationship between crystal and laboratory coordinates.
+;
+
+save_
+
+save_diffrn_orient_matrix.UB_11
+
+    _definition.id               '_diffrn_orient_matrix.UB_11'
+    _definition.update           2025-12-03
+    _name.category_id            diffrn_orient_matrix
+    _name.object_id              UB_11
+    _alias.definition_id         '_diffrn_orient_matrix_UB_11'
+
+    _description.text
+;
+    Element [1][1] of the UB orientation matrix.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+save_
+
+save_diffrn_orient_matrix.UB_12
+
+    _definition.id               '_diffrn_orient_matrix.UB_12'
+    _definition.update           2025-12-03
+    _name.category_id            diffrn_orient_matrix
+    _name.object_id              UB_12
+    _alias.definition_id         '_diffrn_orient_matrix_UB_12'
+
+    _description.text
+;
+    Element [1][2] of the UB orientation matrix.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+save_
+
+save_diffrn_orient_matrix.UB_13
+
+    _definition.id               '_diffrn_orient_matrix.UB_13'
+    _definition.update           2025-12-03
+    _name.category_id            diffrn_orient_matrix
+    _name.object_id              UB_13
+    _alias.definition_id         '_diffrn_orient_matrix_UB_13'
+
+    _description.text
+;
+    Element [1][3] of the UB orientation matrix.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+save_
+
+save_diffrn_orient_matrix.UB_21
+
+    _definition.id               '_diffrn_orient_matrix.UB_21'
+    _definition.update           2025-12-03
+    _name.category_id            diffrn_orient_matrix
+    _name.object_id              UB_21
+    _alias.definition_id         '_diffrn_orient_matrix_UB_21'
+
+    _description.text
+;
+    Element [2][1] of the UB orientation matrix.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+save_
+
+save_diffrn_orient_matrix.UB_22
+
+    _definition.id               '_diffrn_orient_matrix.UB_22'
+    _definition.update           2025-12-03
+    _name.category_id            diffrn_orient_matrix
+    _name.object_id              UB_22
+    _alias.definition_id         '_diffrn_orient_matrix_UB_22'
+
+    _description.text
+;
+    Element [2][2] of the UB orientation matrix.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+save_
+
+save_diffrn_orient_matrix.UB_23
+
+    _definition.id               '_diffrn_orient_matrix.UB_23'
+    _definition.update           2025-12-03
+    _name.category_id            diffrn_orient_matrix
+    _name.object_id              UB_23
+    _alias.definition_id         '_diffrn_orient_matrix_UB_23'
+
+    _description.text
+;
+    Element [2][3] of the UB orientation matrix.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+save_
+
+save_diffrn_orient_matrix.UB_31
+
+    _definition.id               '_diffrn_orient_matrix.UB_31'
+    _definition.update           2025-12-03
+    _name.category_id            diffrn_orient_matrix
+    _name.object_id              UB_31
+    _alias.definition_id         '_diffrn_orient_matrix_UB_31'
+
+    _description.text
+;
+    Element [3][1] of the UB orientation matrix.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+save_
+
+save_diffrn_orient_matrix.UB_32
+
+    _definition.id               '_diffrn_orient_matrix.UB_32'
+    _definition.update           2025-12-03
+    _name.category_id            diffrn_orient_matrix
+    _name.object_id              UB_32
+    _alias.definition_id         '_diffrn_orient_matrix_UB_32'
+
+    _description.text
+;
+    Element [3][2] of the UB orientation matrix.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+save_
+
+save_diffrn_orient_matrix.UB_33
+
+    _definition.id               '_diffrn_orient_matrix.UB_33'
+    _definition.update           2025-12-03
+    _name.category_id            diffrn_orient_matrix
+    _name.object_id              UB_33
+    _alias.definition_id         '_diffrn_orient_matrix_UB_33'
+
+    _description.text
+;
+    Element [3][3] of the UB orientation matrix.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+save_
+
+##############################################################################
+#                                                                            #
+#                      DIFFRN_ZONE_AXIS CATEGORY                             #
+#                                                                            #
+#  Zone axis orientations from PETS                                          #
+#  Read by: rotation_dataset.py generate_crystal_orientations()              #
+#                                                                            #
+##############################################################################
+
+save_DIFFRN_ZONE_AXIS
+
+    _definition.id               DIFFRN_ZONE_AXIS
+    _definition.scope            Category
+    _definition.class            Loop
+    _definition.update           2025-12-03
+    _name.category_id            DIFFBLOCH_DIC
+    _name.object_id              DIFFRN_ZONE_AXIS
+
+    _description.text
+;
+    Zone axis orientations from PETS data collection.
+    Each entry defines a crystal orientation for one diffraction pattern.
+;
+
+    _category.key_id             '_diffrn_zone_axis.id'
+
+save_
+
+save_diffrn_zone_axis.id
+
+    _definition.id               '_diffrn_zone_axis.id'
+    _definition.update           2025-12-03
+    _name.category_id            diffrn_zone_axis
+    _name.object_id              id
+    _alias.definition_id         '_diffrn_zone_axis_id'
+
+    _description.text
+;
+    Unique identifier for this zone axis orientation.
+    Links to _refln.zone_axis_id for reflection assignment.
+;
+
+    _type.purpose                Key
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Integer
+
+save_
+
+save_diffrn_zone_axis.alpha
+
+    _definition.id               '_diffrn_zone_axis.alpha'
+    _definition.update           2025-12-03
+    _name.category_id            diffrn_zone_axis
+    _name.object_id              alpha
+    _alias.definition_id         '_diffrn_zone_axis_alpha'
+
+    _description.text
+;
+    Alpha rotation angle in degrees.
+    Used in construct_rotation_matrix() for Euler angle rotation.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _units.code                  degrees
+
+save_
+
+save_diffrn_zone_axis.beta
+
+    _definition.id               '_diffrn_zone_axis.beta'
+    _definition.update           2025-12-03
+    _name.category_id            diffrn_zone_axis
+    _name.object_id              beta
+    _alias.definition_id         '_diffrn_zone_axis_beta'
+
+    _description.text
+;
+    Beta rotation angle in degrees.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _units.code                  degrees
+
+save_
+
+save_diffrn_zone_axis.omega
+
+    _definition.id               '_diffrn_zone_axis.omega'
+    _definition.update           2025-12-03
+    _name.category_id            diffrn_zone_axis
+    _name.object_id              omega
+    _alias.definition_id         '_diffrn_zone_axis_omega'
+
+    _description.text
+;
+    Omega rotation angle in degrees.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _units.code                  degrees
+
+save_
+
+##############################################################################
+#                                                                            #
+#                     DIFFRN_MEASUREMENT CATEGORY                            #
+#                                                                            #
+#  Measurement parameters - CRITICAL for diffBloch                           #
+#  Read by: rotation_dataset.py extract_data_params()                        #
+#                                                                            #
+##############################################################################
+
+save_DIFFRN_MEASUREMENT
+
+    _definition.id               DIFFRN_MEASUREMENT
+    _definition.scope            Category
+    _definition.class            Set
+    _definition.update           2025-12-03
+    _name.category_id            DIFFBLOCH_DIC
+    _name.object_id              DIFFRN_MEASUREMENT
+
+    _description.text
+;
+    Measurement parameters from PETS data collection.
+
+    CRITICAL: The tag name must be _diffrn_measurement_details (not
+    _diffrn_reflns_reduction_process which is the raw PETS format).
+
+    diffBloch parses this text field to extract experimental parameters.
+;
+
+save_
+
+save_diffrn_measurement.details
+
+    _definition.id               '_diffrn_measurement.details'
+    _definition.update           2025-12-03
+    _definition.mandatory_code   yes
+    _name.category_id            diffrn_measurement
+    _name.object_id              details
+    _alias.definition_id         '_diffrn_measurement_details'
+
+    _description.text
+;
+    Free-text description of measurement parameters from PETS.
+
+    REQUIRED: diffBloch uses this field (not _diffrn_reflns_reduction_process).
+
+    diffBloch parses this text to extract:
+      - rotation axis position: float (degrees)
+      - data collection geometry: 'continuous rotation' or 'precession'
+      - RC width: float (rocking curve width)
+      - mosaicity: float
+      - dstarmax: float (resolution limit)
+
+    Example content:
+      data collection geometry: continuous rotation
+      dstarmax:  1.900
+      RC width:  0.00490
+      mosaicity:  0.070
+      rotation axis position:  272.325
+;
+
+    _type.purpose                Describe
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Text
+
+save_
+
+save_diffrn_measurement.reflns_reduction_process
+
+    _definition.id               '_diffrn_measurement.reflns_reduction_process'
+    _definition.update           2025-12-03
+    _name.category_id            diffrn_measurement
+    _name.object_id              reflns_reduction_process
+    _alias.definition_id         '_diffrn_reflns_reduction_process'
+
+    _description.text
+;
+    Raw PETS reduction process description.
+
+    This tag indicates unconverted PETS output. For diffBloch,
+    the CIF must be converted: this tag should become
+    _diffrn_measurement_details, and 'tilt axis position'
+    should become 'rotation axis position'.
+;
+
+    _type.purpose                Describe
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Text
+
+save_
+
+save_diffrn_measurement.rotation_axis_position
+
+    _definition.id               '_diffrn_measurement.rotation_axis_position'
+    _definition.update           2025-12-03
+    _definition.mandatory_code   yes
+    _name.category_id            diffrn_measurement
+    _name.object_id              'rotation_axis_position'
+    _alias.definition_id         '_diffrn_measurement_rotation_axis_position'
+
+    _description.text
+;
+    Goniometer angle at start of data collection in degrees.
+
+    Used by diffBloch in rotation_axis_correction() to align the
+    experimental coordinate frame with the simulation coordinate frame.
+
+    Source: Extracted from _diffrn_measurement_details free-text field
+    where it appears as "rotation axis position: <value>".
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _units.code                  degrees
+
+save_
+
+save_diffrn_measurement.data_collection_geometry
+
+    _definition.id               '_diffrn_measurement.data_collection_geometry'
+    _definition.update           2025-12-03
+    _definition.mandatory_code   yes
+    _name.category_id            diffrn_measurement
+    _name.object_id              'data_collection_geometry'
+    _alias.definition_id         '_diffrn_measurement_data_collection_geometry'
+
+    _description.text
+;
+    Type of electron diffraction data collection geometry.
+
+    Determines whether diffBloch uses continuous rotation or
+    precession electron diffraction simulation mode.
+
+    Source: Extracted from _diffrn_measurement_details free-text field
+    where it appears as "data collection geometry: <value>".
+;
+
+    _type.purpose                State
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Code
+
+    loop_
+      _enumeration_set.state
+        continuous_rotation
+        precession
+
+save_
+
+save_diffrn_measurement.rc_width
+
+    _definition.id               '_diffrn_measurement.rc_width'
+    _definition.update           2025-12-03
+    _definition.mandatory_code   yes
+    _name.category_id            diffrn_measurement
+    _name.object_id              'rc_width'
+    _alias.definition_id         '_diffrn_measurement_rc_width'
+
+    _description.text
+;
+    Rocking curve width in degrees.
+
+    Used by diffBloch to determine the angular range for intensity
+    integration across the rocking curve.
+
+    Source: Extracted from _diffrn_measurement_details free-text field
+    where it appears as "RC width: <value>".
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _enumeration.range           0.0:
+
+    _units.code                  degrees
+
+save_
+
+save_diffrn_measurement.mosaicity
+
+    _definition.id               '_diffrn_measurement.mosaicity'
+    _definition.update           2025-12-03
+    _definition.mandatory_code   yes
+    _name.category_id            diffrn_measurement
+    _name.object_id              mosaicity
+    _alias.definition_id         '_diffrn_measurement_mosaicity'
+
+    _description.text
+;
+    Crystal mosaicity in degrees.
+
+    Used by diffBloch for calculating the number of frames in the
+    moving average during intensity calculation.
+
+    Source: Extracted from _diffrn_measurement_details free-text field
+    where it appears as "mosaicity: <value>".
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _enumeration.range           0.0:
+
+    _units.code                  degrees
+
+save_
+
+save_diffrn_measurement.dstarmax
+
+    _definition.id               '_diffrn_measurement.dstarmax'
+    _definition.update           2025-12-03
+    _definition.mandatory_code   yes
+    _name.category_id            diffrn_measurement
+    _name.object_id              dstarmax
+    _alias.definition_id         '_diffrn_measurement_dstarmax'
+
+    _description.text
+;
+    Resolution limit as d* (1/d_min) in reciprocal Angstroms.
+
+    Defines the maximum resolution of reflections to include
+    in the diffBloch refinement.
+
+    Source: Extracted from _diffrn_measurement_details free-text field
+    where it appears as "dstarmax: <value>".
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _enumeration.range           0.0:
+
+    _units.code                  reciprocal_angstroms
+
+save_
+
+##############################################################################
+#                                                                            #
+#                           REFLN CATEGORY                                   #
+#                                                                            #
+#  Reflection intensities from PETS                                          #
+#  Read by: rotation_dataset.py get_exp_ints()                               #
+#                                                                            #
+##############################################################################
+
+save_REFLN
+
+    _definition.id               REFLN
+    _definition.scope            Category
+    _definition.class            Loop
+    _definition.update           2025-12-03
+    _name.category_id            DIFFBLOCH_DIC
+    _name.object_id              REFLN
+
+    _description.text
+;
+    Measured reflection intensities from electron diffraction.
+    Each entry is a single reflection with Miller indices and intensity.
+;
+
+    _category_key.name           '_refln.zone_axis_id'
+    _category_key.name           '_refln.index_h'
+    _category_key.name           '_refln.index_k'
+    _category_key.name           '_refln.index_l'
+
+save_
+
+save_refln.zone_axis_id
+
+    _definition.id               '_refln.zone_axis_id'
+    _definition.update           2025-12-03
+    _name.category_id            refln
+    _name.object_id              zone_axis_id
+    _alias.definition_id         '_refln_zone_axis_id'
+
+    _description.text
+;
+    Zone axis ID linking this reflection to its diffraction pattern.
+    References _diffrn_zone_axis.id.
+;
+
+    _type.purpose                Link
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Integer
+
+save_
+
+save_refln.index_h
+
+    _definition.id               '_refln.index_h'
+    _definition.update           2025-12-03
+    _name.category_id            refln
+    _name.object_id              index_h
+    _alias.definition_id         '_refln_index_h'
+
+    _description.text
+;
+    Miller index h of the reflection.
+;
+
+    _type.purpose                Key
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Integer
+
+save_
+
+save_refln.index_k
+
+    _definition.id               '_refln.index_k'
+    _definition.update           2025-12-03
+    _name.category_id            refln
+    _name.object_id              index_k
+    _alias.definition_id         '_refln_index_k'
+
+    _description.text
+;
+    Miller index k of the reflection.
+;
+
+    _type.purpose                Key
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Integer
+
+save_
+
+save_refln.index_l
+
+    _definition.id               '_refln.index_l'
+    _definition.update           2025-12-03
+    _name.category_id            refln
+    _name.object_id              index_l
+    _alias.definition_id         '_refln_index_l'
+
+    _description.text
+;
+    Miller index l of the reflection.
+;
+
+    _type.purpose                Key
+    _type.source                 Assigned
+    _type.container              Single
+    _type.contents               Integer
+
+save_
+
+save_refln.intensity_meas
+
+    _definition.id               '_refln.intensity_meas'
+    _definition.update           2025-12-03
+    _name.category_id            refln
+    _name.object_id              intensity_meas
+    _alias.definition_id         '_refln_intensity_meas'
+
+    _description.text
+;
+    Measured intensity of the reflection.
+    Used as target for refinement optimization.
+
+    Note: Values can be negative due to background subtraction
+    in experimental data processing.
+;
+
+    _type.purpose                Measurand
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+save_
+
+save_refln.intensity_sigma
+
+    _definition.id               '_refln.intensity_sigma'
+    _definition.update           2025-12-03
+    _name.category_id            refln
+    _name.object_id              intensity_sigma
+    _alias.definition_id         '_refln_intensity_sigma'
+
+    _description.text
+;
+    Standard uncertainty of the measured intensity.
+    Used for weighting in refinement loss functions.
+;
+
+    _type.purpose                SU
+    _type.source                 Recorded
+    _type.container              Single
+    _type.contents               Real
+
+    _enumeration.range           0.0:
+
+save_

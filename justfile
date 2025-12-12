@@ -273,3 +273,7 @@ setup:
 # Install git hooks
 install-hooks:
     ./install-hooks.sh
+
+# Run Python examples for a specific package (builds extension first)
+python-examples pkg:
+    cd {{python_dir}}/{{pkg}} && uv run maturin develop && uv run --extra examples jupyter lab examples/

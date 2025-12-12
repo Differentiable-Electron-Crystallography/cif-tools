@@ -1,8 +1,8 @@
 data_pets
 _audit_creation_method      'PETS2 version 2.2.20241028.2022'
-_cell_length_a        5.63083
+_cell_length_a        5.63083(80)
 _cell_length_b        5.63083
-_cell_length_c        4.71453
+_cell_length_c        4.71453(100)
 _cell_angle_alpha   89.99989
 _cell_angle_beta    90.00017
 _cell_angle_gamma   89.99992
@@ -32,6 +32,13 @@ Virtual frame settings: number of merged frames: 14
                         step between frames:      9
                         intensity integration: integrate intensity on all frames
 ;
+# Structured measurement parameters (extracted from _diffrn_measurement_details free text field produced by cif pets)
+_diffrn_measurement_rotation_axis_position    272.325
+_diffrn_measurement_data_collection_geometry  continuous_rotation
+_diffrn_measurement_rc_width                  0.00490
+_diffrn_measurement_mosaicity                 0.070
+_diffrn_measurement_dstarmax                  1.900
+
 _cell_measurement_reflns_used         1313
 _cell_measurement_theta_min          0.180
 _cell_measurement_theta_max          1.355

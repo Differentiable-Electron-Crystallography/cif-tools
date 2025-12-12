@@ -475,11 +475,13 @@ file_heading = { "\u{FEFF}"? ~ magic_code ~ inline_wspace* }
 // For backward compatibility: magic comment is optional
 // - If present → CIF 2.0
 // - If absent → CIF 1.1 (or CIF 2.0 without magic comment)
+// Note: inline_wspace* ~ comment? allows files to end without a trailing newline
 file = {
     SOI ~
     file_heading? ~
     wspace_any ~
     (!EOI ~ datablock+ ~ wspace?)? ~
+    inline_wspace* ~ comment? ~
     EOI
 }
 
